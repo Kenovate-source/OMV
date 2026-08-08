@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { AuthProvider } from "@/lib/auth/auth-context";
+import { CartProvider } from "@/lib/cart/cart-context";
+import { WishlistProvider } from "@/lib/wishlist/wishlist-context";
+import { FamilyProvider } from "@/lib/family/family-context";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import "./globals.css";
@@ -59,9 +62,15 @@ export default function RootLayout({
         </a>
         <ThemeProvider>
           <AuthProvider>
-            <Navbar />
-            <main id="main-content">{children}</main>
-            <Footer />
+            <FamilyProvider>
+              <WishlistProvider>
+                <CartProvider>
+                  <Navbar />
+                  <main id="main-content">{children}</main>
+                  <Footer />
+                </CartProvider>
+              </WishlistProvider>
+            </FamilyProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
