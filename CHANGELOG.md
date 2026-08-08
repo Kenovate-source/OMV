@@ -6,6 +6,19 @@ All notable changes to the OMV project are documented here, newest first.
 
 **Status:** Awaiting your approval.
 
+### Patch — Vercel build fix
+- Fixed a TypeScript strict-mode error in `components/shop/ProductDetail.tsx`
+  that failed `next build` on Vercel: `product.sizes[0]` is typed
+  `string | undefined` under this project's `noUncheckedIndexedAccess`
+  tsconfig setting, so `size` state carried that `undefined` into
+  `addItem()`, which requires a `string`. Fixed by typing the state as a
+  guaranteed `string` (with a `""` fallback for the edge case of a product
+  with no sizes) and guarding `handleAddToCart`/the "Add to Bag" button so
+  it's disabled rather than silently no-op-ing if no size is available. No
+  type-safety was weakened — no `any`, no non-null assertions.
+- Confirmed no other array-index accesses exist elsewhere in the codebase
+  that could hit the same strict-mode rule.
+
 ### Added
 - Mock product catalogue (`lib/data/products.ts`) — 12 products across
   women/men/kids, shaped to map directly onto the real Prisma schema in

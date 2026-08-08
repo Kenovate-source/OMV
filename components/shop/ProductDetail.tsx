@@ -11,15 +11,21 @@ import { useWishlist } from "@/lib/wishlist/wishlist-context";
 import { formatNaira, getRelatedProducts, type Product } from "@/lib/data/products";
 
 export function ProductDetail({ product }: { product: Product }) {
-  const [size, setSize] = useState(product.sizes[0]);
+  // product.sizes[0] is `string | undefined` under noUncheckedIndexedAccess
+  // (tsconfig strict mode), so the state itself is typed as the guaranteed
+  // `string` it should be, with an explicit fallback for the edge case of
+  // a product with no sizes defined at all.
+  const [size, setSize] = useState<string>(product.sizes[0] ?? "");
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
   const { has, toggle } = useWishlist();
   const wished = has(product.id);
   const [from, to] = product.swatch;
   const relatedProducts = getRelatedProducts(product.completeTheLook);
+  const hasSizeSelected = size.length > 0;
 
   function handleAddToCart() {
+    if (!hasSizeSelected) return;
     addItem(product, size);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 2000);
@@ -55,7 +61,7 @@ export function ProductDetail({ product }: { product: Product }) {
 
           <div className="mt-8">
             <h2 className="mb-3 text-sm font-medium text-foreground">
-              Size — {size}
+              {hasSizeSelected ? `Size — ${size}` : "Select a size"}
             </h2>
             <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select size">
               {product.sizes.map((s) => (
@@ -84,7 +90,12 @@ export function ProductDetail({ product }: { product: Product }) {
           </div>
 
           <div className="mt-10 flex gap-3">
-            <Button size="lg" onClick={handleAddToCart} className="flex-1">
+            <Button
+              size="lg"
+              onClick={handleAddToCart}
+              disabled={!hasSizeSelected}
+              className="flex-1"
+            >
               {added ? "Added to bag ✓" : "Add to Bag"}
             </Button>
             <button

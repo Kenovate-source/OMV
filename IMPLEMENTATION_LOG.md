@@ -8,7 +8,22 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ## Phase 2 — Storefront
 
-**Status:** Complete, pending review.
+**Status:** Complete, pending review. One post-delivery build fix applied
+(see below) — no functional or design changes.
+
+### Build fix (post-delivery)
+Vercel's `next build` failed with a TypeScript error in
+`components/shop/ProductDetail.tsx`: `product.sizes[0]` is `string |
+undefined` under this project's own strict `noUncheckedIndexedAccess`
+tsconfig setting (set in Phase 1, per the Master Development Guide's
+"strict typing" standard), and that `undefined` was flowing unguarded into
+`addItem()`. Fixed by declaring the `size` state explicitly as `string`
+with a `""` fallback, and disabling "Add to Bag" (plus a no-op guard in the
+handler) whenever no size is actually selected — covers the real edge case
+of a product defined with an empty `sizes` array, not just the type error.
+No types were weakened (`any` or non-null assertions) to make this pass;
+audited the rest of the codebase for the same pattern and found no other
+instances.
 
 ### Completed
 - Product data layer: `lib/data/products.ts`, a typed mock catalogue (12
