@@ -2,6 +2,51 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
+## v0.2 — Storefront (Phase 2)
+
+**Status:** Awaiting your approval.
+
+### Added
+- Mock product catalogue (`lib/data/products.ts`) — 12 products across
+  women/men/kids, shaped to map directly onto the real Prisma schema in
+  Phase 5.
+- `CartProvider`/`useCart`, `WishlistProvider`/`useWishlist`,
+  `FamilyProvider`/`useFamily` — all persisted to `localStorage`.
+- Category pages `/women`, `/men`, `/kids` via a shared `CatalogueView`
+  (badge/size filters, sort).
+- `/product/[slug]` product detail page with size selection, add-to-cart,
+  wishlist toggle, and a "Complete the Look" related-products section.
+- `/search` — live search against name/category/description.
+- `/wishlist` and `/cart` pages, wired to the new contexts.
+- `/checkout` — shipping form, order summary, and a working confirmation
+  step (payment gateway explicitly deferred to Phase 5, and labelled as
+  such in the UI).
+- `/family-shopping` — add/remove family members, set an active shopping
+  profile.
+- `/complete-the-look` — curated outfit pairings page.
+- Navbar: live cart/wishlist item-count badges, working search flyout
+  (desktop) and inline search field (mobile).
+- 12 new preview PNGs (desktop + mobile, dark + light where applicable)
+  covering every new screen.
+
+### Changed
+- `app/layout.tsx` now nests `FamilyProvider` → `WishlistProvider` →
+  `CartProvider` around the existing `AuthProvider`/`ThemeProvider`.
+- `Navbar` gained live counts and search; no visual changes to nav links,
+  logo usage, or mobile menu structure from Phase 1.
+
+### Not changed
+Nothing from Phase 1's foundation (theme tokens, branding, auth pages,
+landing page, layout) was altered beyond the Navbar additions above, per
+your instruction not to redesign anything Phase 2 didn't require.
+
+### Not yet built
+Customer dashboard, AI assistant, outfit builder (Phase 3); admin portal
+(Phase 4); real backend/payments/notifications (Phase 5); PWA/deployment
+hardening (Phase 6).
+
+---
+
 ## v0.1 — Foundation (Phase 1)
 
 ### Added
