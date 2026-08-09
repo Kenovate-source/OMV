@@ -6,6 +6,17 @@ All notable changes to the OMV project are documented here, newest first.
 
 **Status:** Awaiting your approval.
 
+### Patch — Vercel ESLint build fix
+- Fixed `.eslintrc.json`: the project's own `"no-unused-vars": "warn"`
+  override was shadowing the TypeScript-aware unused-vars rule, causing
+  every parameter name in every context interface's function-type
+  signatures (across all phases, not just Phase 3) to be misreported as
+  unused. Turned the base rule off and enabled
+  `@typescript-eslint/no-unused-vars` explicitly instead. No context file
+  logic changed — see IMPLEMENTATION_LOG.md for full root-cause detail.
+- Added explicit `@typescript-eslint/eslint-plugin` and
+  `@typescript-eslint/parser` devDependencies to `package.json`.
+
 ### Added
 - `/account` dashboard with a shared `DashboardShell` (sidebar nav desktop,
   scrollable tab bar mobile) wrapping 8 new pages:

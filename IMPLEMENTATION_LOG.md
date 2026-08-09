@@ -6,6 +6,46 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 3 — Build fix (post-delivery, pre-approval)
+
+**Issue:** Vercel's `next build` failed with a wall of `no-unused-vars`
+ESLint warnings against parameter names inside `interface` function-type
+signatures (e.g. `updateProfile: (patch: Partial<Profile>) => void;` in
+`ProfileContextValue`) across every context file in the project —
+including Phase 1/2 files (`cart-context.tsx`, `family-context.tsx`,
+`auth-context.tsx`, `address-context.tsx`), not just Phase 3's new ones.
+
+**Root cause:** `.eslintrc.json` explicitly set `"no-unused-vars": "warn"`,
+which re-enables the plain JavaScript ESLint rule. That rule has no concept
+of TypeScript type positions, so it misreads a parameter name inside an
+interface's function-type signature (a type-level declaration, not a real
+variable binding) as an unused variable. The TypeScript-aware
+`@typescript-eslint/no-unused-vars` rule — already bundled via
+`eslint-config-next` — correctly excludes these type-only positions and
+was being shadowed by the project's own config override.
+
+**Fix:**
+- `.eslintrc.json` — turned the base `no-unused-vars` off and enabled
+  `@typescript-eslint/no-unused-vars` (`warn`, `argsIgnorePattern: "^_"`)
+  in its place. No context file body was touched — this is a config-only
+  fix, not a functional change, so notifications, orders, profile,
+  style/outfit, and wishlist behavior is unchanged.
+- `package.json` — added explicit `@typescript-eslint/eslint-plugin` and
+  `@typescript-eslint/parser` devDependencies (`^6.21.0`, matching
+  `eslint-config-next@14`'s expected range) rather than relying solely on
+  their transitive resolution through `eslint-config-next`, removing any
+  ambiguity about whether the rule can resolve during Vercel's install.
+
+**Verification performed:** grepped every `*ContextValue` interface across
+`lib/*/*.tsx` and confirmed the exact same type-signature-parameter pattern
+in all nine context files, matching every line/column in the pasted Vercel
+log. Could not execute `npm run build`/`eslint .` directly in this sandbox
+(no network access — confirmed by a blocked npm registry call), so this is
+a careful manual diagnosis rather than a locally-verified pass; please run
+the build and flag immediately if anything else surfaces.
+
+---
+
 ## Phase 3 — Customer Dashboard
 
 **Status:** Complete, pending review.
