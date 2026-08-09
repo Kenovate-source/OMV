@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/Input";
 import { Button, buttonVariants } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useCart } from "@/lib/cart/cart-context";
+import { useOrders } from "@/lib/orders/order-context";
 import { PRODUCTS, formatNaira } from "@/lib/data/products";
 
 export default function CheckoutPage() {
   const { lines, clear } = useCart();
+  const { addOrder } = useOrders();
   const [placed, setPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
 
@@ -22,9 +24,23 @@ export default function CheckoutPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     // Phase 5 will POST this to the real orders API and integrate a payment
-    // gateway. For now Phase 2 demonstrates the full flow end-to-end with a
-    // generated local reference so the UX can be reviewed and tested.
+    // gateway. For now, Phase 3 persists the order into the local order
+    // history (lib/orders/order-context.tsx) so the Customer Dashboard's
+    // Orders, Order Tracking and Loyalty pages have real data to show —
+    // the full flow can be reviewed end to end today.
     const id = `OMV-${Date.now().toString().slice(-8)}`;
+    addOrder({
+      id,
+      date: new Date().toISOString(),
+      total: subtotal,
+      items: rows.map((r) => ({
+        productId: r.product.id,
+        name: r.product.name,
+        size: r.line.size,
+        qty: r.line.qty,
+        price: r.product.price,
+      })),
+    });
     setOrderId(id);
     setPlaced(true);
     clear();
@@ -36,13 +52,18 @@ export default function CheckoutPage() {
         <CheckCircle2 size={40} className="text-gold" aria-hidden="true" />
         <h1 className="mt-6 font-serif text-3xl text-foreground">Order placed</h1>
         <p className="mt-3 text-sm text-foreground-muted">
-          Reference <span className="text-gold">{orderId}</span>. Order tracking and email
-          confirmation will connect to the real backend in Phase 5 — this
-          confirms the checkout flow works end to end.
+          Reference <span className="text-gold">{orderId}</span>. Email/SMS
+          confirmation will connect to the real backend in Phase 5 — you can
+          already track this order's status in your dashboard.
         </p>
-        <Link href="/" className={cn(buttonVariants({ variant: "primary" }), "mt-8")}>
-          Continue Shopping
-        </Link>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <Link href="/account/orders" className={cn(buttonVariants({ variant: "primary" }))}>
+            View Order
+          </Link>
+          <Link href="/" className={cn(buttonVariants({ variant: "outline" }))}>
+            Continue Shopping
+          </Link>
+        </div>
       </div>
     );
   }

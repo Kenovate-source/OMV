@@ -14,9 +14,10 @@ const FOOTER_COLUMNS = [
   {
     title: "Account",
     links: [
-      { href: "/orders", label: "Order Tracking" },
+      { href: "/account", label: "My Account" },
+      { href: "/account/orders", label: "Order Tracking" },
       { href: "/wishlist", label: "Wishlist" },
-      { href: "/loyalty", label: "Loyalty & Rewards" },
+      { href: "/account/loyalty", label: "Loyalty & Rewards" },
       { href: "/login", label: "Sign In" },
     ],
   },

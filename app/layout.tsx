@@ -5,6 +5,11 @@ import { AuthProvider } from "@/lib/auth/auth-context";
 import { CartProvider } from "@/lib/cart/cart-context";
 import { WishlistProvider } from "@/lib/wishlist/wishlist-context";
 import { FamilyProvider } from "@/lib/family/family-context";
+import { ProfileProvider } from "@/lib/profile/profile-context";
+import { AddressProvider } from "@/lib/addresses/address-context";
+import { OrderProvider } from "@/lib/orders/order-context";
+import { NotificationProvider } from "@/lib/notifications/notification-context";
+import { StyleProvider } from "@/lib/style/style-context";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import "./globals.css";
@@ -62,15 +67,25 @@ export default function RootLayout({
         </a>
         <ThemeProvider>
           <AuthProvider>
-            <FamilyProvider>
-              <WishlistProvider>
-                <CartProvider>
-                  <Navbar />
-                  <main id="main-content">{children}</main>
-                  <Footer />
-                </CartProvider>
-              </WishlistProvider>
-            </FamilyProvider>
+            <ProfileProvider>
+              <AddressProvider>
+                <OrderProvider>
+                  <NotificationProvider>
+                    <StyleProvider>
+                      <FamilyProvider>
+                        <WishlistProvider>
+                          <CartProvider>
+                            <Navbar />
+                            <main id="main-content">{children}</main>
+                            <Footer />
+                          </CartProvider>
+                        </WishlistProvider>
+                      </FamilyProvider>
+                    </StyleProvider>
+                  </NotificationProvider>
+                </OrderProvider>
+              </AddressProvider>
+            </ProfileProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

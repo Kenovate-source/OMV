@@ -127,15 +127,20 @@ export function Navbar() {
             <CountBadge count={itemCount} />
           </Link>
           <ThemeToggle />
-          <Link
-            href="/login"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "hidden lg:inline-flex"
-            )}
-          >
-            <User size={16} aria-hidden="true" /> Sign in
-          </Link>
+          <div className="hidden items-center gap-2 lg:flex">
+            <Link
+              href="/account"
+              className="text-sm text-foreground-muted transition-colors hover:text-gold"
+            >
+              My Account
+            </Link>
+            <Link
+              href="/login"
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            >
+              <User size={16} aria-hidden="true" /> Sign in
+            </Link>
+          </div>
 
           <button
             type="button"
@@ -188,6 +193,11 @@ export function Navbar() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/account" onClick={() => setOpen(false)} className="text-base text-foreground hover:text-gold">
+                My Account
+              </Link>
+            </li>
             <li>
               <Link href="/login" onClick={() => setOpen(false)} className="text-base text-gold">
                 Sign in

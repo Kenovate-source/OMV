@@ -2,9 +2,61 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
-## v0.2 — Storefront (Phase 2)
+## v0.3 — Customer Dashboard (Phase 3)
 
 **Status:** Awaiting your approval.
+
+### Added
+- `/account` dashboard with a shared `DashboardShell` (sidebar nav desktop,
+  scrollable tab bar mobile) wrapping 8 new pages:
+  - `/account` — Profile overview (editable details + quick stats)
+  - `/account/addresses` — saved address book
+  - `/account/orders` — real order history + `OrderTracker` stepper
+  - `/account/loyalty` — tier/points derived from real order history
+  - `/account/notifications` — Email/SMS/WhatsApp/Push preference toggles
+  - `/account/ai-stylist` — AI Fashion Assistant (keyword-matched preview)
+  - `/account/outfit-builder` — build and save outfits from the catalogue
+  - `/account/style-quiz` — short quiz producing a persisted style profile
+- Five new persisted contexts: `ProfileProvider`, `AddressProvider`,
+  `OrderProvider`, `NotificationProvider`, `StyleProvider` — same
+  localStorage pattern as every Phase 1/2 context.
+- Checkout now calls `addOrder()` on successful order placement, so orders
+  placed in the storefront show up in Order History / Tracking / Loyalty
+  automatically — the dashboard is wired to real Phase 2 activity, not
+  separately-seeded demo data.
+- Checkout confirmation now links directly to `/account/orders`.
+- Footer's "Order Tracking" and "Loyalty & Rewards" links (previously
+  pointing at non-existent routes) now point at the real dashboard pages;
+  added a "My Account" entry.
+- Navbar: added a "My Account" link next to the existing "Sign in" link
+  (desktop and mobile) — additive, Sign In was not removed or replaced.
+- 12 new preview PNGs (desktop + mobile, dark + light where applicable)
+  covering every new dashboard page.
+
+### Changed
+- `app/layout.tsx` gained five additional providers, nested alongside the
+  existing ones — no provider removed or reordered relative to Phase 2.
+- `app/checkout/page.tsx` — order placement now persists to `useOrders()`;
+  confirmation screen copy updated accordingly. Shipping form, payment
+  placeholder, and order-summary UI are otherwise unchanged from Phase 2.
+
+### Not changed
+Nothing from Phase 1 or Phase 2's approved functionality was altered beyond
+the additive Navbar/Footer link fixes and Checkout's order-persistence hook
+described above.
+
+### Deferred to later phases
+- Real authentication gating the dashboard (Phase 5)
+- Real order fulfillment events driving Order Tracking status (Phase 5)
+- Full AI personalization service (Phase 5)
+- Address book wired into Checkout's shipping form (candidate for Phase 4/5)
+- Admin portal (Phase 4)
+
+---
+
+## v0.2 — Storefront (Phase 2)
+
+**Status:** ✅ Approved — QA-tested on the live Vercel deployment.
 
 ### Patch — Vercel build fix
 - Fixed a TypeScript strict-mode error in `components/shop/ProductDetail.tsx`

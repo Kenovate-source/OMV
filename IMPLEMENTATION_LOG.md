@@ -6,10 +6,122 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 3 — Customer Dashboard
+
+**Status:** Complete, pending review.
+
+### Completed
+- `DashboardShell` (`components/account/DashboardShell.tsx`) — one shared
+  layout (sidebar nav desktop / scrollable tab bar mobile) wrapping all
+  `/account/*` routes via `app/account/layout.tsx`, so every dashboard page
+  automatically gets consistent navigation without repeating it per page.
+- Five new persisted contexts, all following the exact localStorage +
+  hydration-guard pattern established in Phase 1 (`ThemeProvider`) and
+  reused throughout Phase 2: `ProfileProvider`, `AddressProvider`,
+  `OrderProvider`, `NotificationProvider`, `StyleProvider`.
+- `/account` (Overview/Profile), `/account/addresses`, `/account/orders`,
+  `/account/loyalty`, `/account/notifications`, `/account/ai-stylist`,
+  `/account/outfit-builder`, `/account/style-quiz` — all 8 pages listed
+  for Phase 3 in the original brief (Profile, Addresses, Orders, Order
+  Tracking, Loyalty, Notifications, AI Fashion Assistant, Outfit Builder,
+  Style Quiz).
+- `OrderTracker` (`components/account/OrderTracker.tsx`) — standalone
+  4-step stepper (Placed → Processing → Shipped → Delivered), reused by
+  the Orders page for every order.
+- **Real integration with Phase 2, not parallel mock data:**
+  `app/checkout/page.tsx` now calls `useOrders().addOrder()` on successful
+  order placement instead of only generating a reference number. This
+  means orders placed through the actual storefront checkout flow appear
+  in Order History, feed the Order Tracking stepper, and drive the Loyalty
+  points/tier calculation — the dashboard reflects real Phase 2 activity.
+- Footer's "Order Tracking" and "Loyalty & Rewards" links, which pointed at
+  non-existent routes since Phase 2, now point at the real dashboard pages;
+  added a "My Account" entry to the same column.
+- Navbar: added a "My Account" text link next to the existing "Sign in"
+  button, in both desktop and mobile nav. This was deliberately additive —
+  I initially replaced the Sign In button outright, then reconsidered
+  since removing an approved, working nav element wasn't necessary to
+  achieve discoverability; added alongside it instead.
+- 12 new offline-rendered preview PNGs (same headless-Chromium approach as
+  Phases 1–2), covering all 8 new pages, desktop + mobile, dark + light
+  where applicable.
+
+### Assumptions made (flagging per your instruction to pause on ambiguity)
+- **Dashboard accessible without real login:** same reasoning as Family
+  Shopping in Phase 2 — Phase 5 auth doesn't exist yet, so I built the
+  full dashboard now with local persistence and a visible, shell-level
+  notice ("saved locally... until Phase 5"), rather than blocking review
+  of 8 pages of work behind a login wall that doesn't functionally exist
+  yet. Flagging this the same way as before — let me know if you'd rather
+  gate specific pages behind a "coming soon" state.
+- **Order status defaults to "Processing":** there's no fulfillment
+  backend yet to report real status, so every new order is mocked into
+  "Processing" (rather than "Placed") so the tracker has something
+  meaningful to visualize on first view. Phase 5 replaces this with real
+  fulfillment events.
+- **AI Fashion Assistant is a working keyword-match preview, not a stub:**
+  rather than either building nothing or faking a "real AI" experience, I
+  built an honest lightweight version — it matches user input against the
+  actual `PRODUCTS` catalogue by category/name keywords, framed clearly in
+  its own copy as a preview. Purple is used as the primary color here
+  (not just an accent), which is a deliberate, brand-book-correct
+  exception: §15 designates purple specifically for AI features.
+- **Addresses are not yet wired into Checkout:** the address book
+  (`/account/addresses`) and Checkout's shipping form are separate today.
+  Connecting them (e.g. "use a saved address") is a reasonable Phase 4/5
+  follow-up once a real backend exists to justify the added complexity now.
+- **Outfit Builder uses tap-to-select, not drag-and-drop:** chosen for
+  mobile usability and because a small catalogue doesn't need spatial
+  arrangement — flagging in case a visual "canvas" style builder was
+  expected instead.
+
+### Deviations
+- None from the source documents.
+
+### Build-process note (caught during preview generation, not shipped)
+While regenerating offline preview screenshots, an intermediate
+`base.css` got recreated from scratch instead of appended to (the
+`preview-src/` scratch folder had been deleted after Phase 2 packaging),
+which briefly produced unstyled preview renders. Caught by visually
+inspecting the first render before proceeding, rebuilt the complete
+stylesheet, and re-rendered all 12 files — mentioning this because it's
+exactly the kind of silent-looking failure this review workflow exists to
+catch, and it worked as intended. This affected only local preview
+generation, never the actual Next.js application source.
+
+### TypeScript strict-mode audit (proactive, given the Phase 2 build fix)
+Given the `noUncheckedIndexedAccess` error found and fixed in Phase 2
+(`components/shop/ProductDetail.tsx`), every new Phase 3 file was checked
+for the same pattern before delivery:
+- `app/account/style-quiz/page.tsx` indexes `QUESTIONS[step]` and
+  `RESULTS[...]` — both guarded (an early-return `if (!current) return
+  null` for the former, a literal string fallback for the latter) rather
+  than asserted away.
+- `app/account/loyalty/page.tsx`'s tier lookup uses `.find(...) ?? {...
+  fallback object}` rather than re-indexing a possibly-undefined array
+  element.
+- No other array-index or object-key access patterns that could trigger
+  this rule were found in the new code.
+
+### Not yet built (later phases)
+- Admin portal + RBAC (Phase 4)
+- Real backend/API, payments, notifications, real authentication,
+  fulfillment-driven order status, real AI service (Phase 5)
+- PWA service worker, deployment hardening, testing (Phase 6)
+
+### Deployment note
+No changes to `next.config.js` or dependencies beyond what Phases 1–2
+already declared. All new code uses the same Next.js/React/Tailwind
+primitives already deployed successfully — should deploy to the existing
+Vercel project the same way.
+
+---
+
 ## Phase 2 — Storefront
 
-**Status:** Complete, pending review. One post-delivery build fix applied
-(see below) — no functional or design changes.
+**Status:** Complete, approved (QA-tested on live Vercel deployment). One
+post-delivery build fix applied (see below) — no functional or design
+changes.
 
 ### Build fix (post-delivery)
 Vercel's `next build` failed with a TypeScript error in
