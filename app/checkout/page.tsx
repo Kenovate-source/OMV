@@ -54,7 +54,7 @@ export default function CheckoutPage() {
         <p className="mt-3 text-sm text-foreground-muted">
           Reference <span className="text-gold">{orderId}</span>. Email/SMS
           confirmation will connect to the real backend in Phase 5 — you can
-          already track this order's status in your dashboard.
+          already track this order&apos;s status in your dashboard.
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/account/orders" className={cn(buttonVariants({ variant: "primary" }))}>

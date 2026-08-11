@@ -6,7 +6,51 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
-## Phase 3 — Build fix (post-delivery, pre-approval)
+## Phase 3 — Build fix #2 (post-delivery, pre-approval)
+
+**Issue reported:** Vercel's `next build` now reached the lint/type-check
+step and failed on a real, build-blocking error:
+
+```
+./app/checkout/page.tsx
+57:35  Error: `'` can be escaped with `&apos;`, ... react/no-unescaped-entities
+```
+
+**Fix:** `app/checkout/page.tsx` line 57 — `this order's status` inside a
+JSX text node had a raw apostrophe. Changed to `this order&apos;s status`.
+Nothing else on the page changed.
+
+**Proactive check performed:** rather than fixing this one instance and
+waiting for the next error to surface one at a time, searched every `.tsx`
+file in `app/` and `components/` for the same pattern (contraction
+apostrophes, straight double-quotes) sitting in actual JSX text content.
+Found four other apostrophes containing similar substrings, but confirmed
+each one sits inside either a `//` comment or a JS string literal (e.g. the
+AI stylist's canned reply text, assigned to a `text:` property) — neither
+of which `react/no-unescaped-entities` applies to, since the rule only
+fires on literal JSX children, not code comments or string values. No
+further changes needed for this rule.
+
+**On the ESLint config still reportedly showing bare `no-unused-vars`:**
+Re-inspected the actual committed `.eslintrc.json` and searched the whole
+project tree for any other ESLint config source (`.eslintrc.*` variants,
+`eslint.config.*` flat config, an `eslintConfig` key in `package.json`, an
+`.eslintignore`, or ESLint settings in `next.config.js`). Found exactly one
+config file, and its content already matches the Build fix #1 change from
+the previous round (`no-unused-vars: off`,
+`@typescript-eslint/no-unused-vars: warn`) — no duplicate or overriding
+config exists anywhere in this project. If a real ESLint run still reports
+the bare (unprefixed) `no-unused-vars` rule ID, that specific rule must
+still be active, which — given the config here is correct — points to the
+deployed repository not yet reflecting the `.eslintrc.json` and
+`package.json` changes from the previous delivered zip, rather than a bug
+in the config itself. Flagging this plainly rather than guessing further:
+please diff the `.eslintrc.json` and `package.json` in this zip against
+what's actually committed on the branch Vercel builds from.
+
+---
+
+## Phase 3 — Build fix #1 (post-delivery, pre-approval)
 
 **Issue:** Vercel's `next build` failed with a wall of `no-unused-vars`
 ESLint warnings against parameter names inside `interface` function-type

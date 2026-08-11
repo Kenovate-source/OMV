@@ -6,7 +6,20 @@ All notable changes to the OMV project are documented here, newest first.
 
 **Status:** Awaiting your approval.
 
-### Patch — Vercel ESLint build fix
+### Patch #2 — Vercel build-blocking error fix
+- Fixed `app/checkout/page.tsx`: raw apostrophe in JSX text
+  ("this order's status") escaped to `&apos;`, resolving the actual
+  build-blocking `react/no-unescaped-entities` error. Searched the rest of
+  the codebase for the same pattern — no other instances found in real JSX
+  text (a few similar-looking matches were inside comments or string
+  literals, which this rule doesn't apply to).
+- Re-verified `.eslintrc.json` and confirmed no duplicate/conflicting
+  ESLint config exists anywhere in the project. Config already contains
+  the Patch #1 fix; if a build still shows unprefixed `no-unused-vars`,
+  see IMPLEMENTATION_LOG.md — likely means the deployed repo hasn't picked
+  up the Patch #1 file changes yet.
+
+### Patch #1 — Vercel ESLint build fix
 - Fixed `.eslintrc.json`: the project's own `"no-unused-vars": "warn"`
   override was shadowing the TypeScript-aware unused-vars rule, causing
   every parameter name in every context interface's function-type
