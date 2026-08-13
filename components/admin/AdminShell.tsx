@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ComponentType } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard,
   Boxes,
@@ -24,7 +24,7 @@ import { useAdminNotifications } from "@/lib/admin/admin-notifications-context";
 interface NavItem {
   href: string;
   label: string;
-  icon: ComponentType<{ size?: number; "aria-hidden"?: boolean | "true" | "false" }>;
+  icon: LucideIcon;
   roles: AdminRole[];
 }
 
