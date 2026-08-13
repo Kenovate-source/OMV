@@ -29,6 +29,7 @@ export interface Order {
 interface OrderContextValue {
   orders: Order[];
   addOrder: (order: Omit<Order, "status">) => void;
+  updateStatus: (id: string, status: OrderStatus) => void;
 }
 
 const OrderContext = createContext<OrderContextValue | undefined>(undefined);
@@ -60,8 +61,14 @@ export function OrderProvider({ children }: { children: ReactNode }) {
     setOrders((prev) => [{ ...order, status: "Processing" }, ...prev]);
   };
 
+  // Phase 4: lets the Admin Portal's Orders page advance a real order's
+  // status — the same order list customers see in their own dashboard.
+  const updateStatus: OrderContextValue["updateStatus"] = (id, status) => {
+    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+  };
+
   return (
-    <OrderContext.Provider value={{ orders, addOrder }}>
+    <OrderContext.Provider value={{ orders, addOrder, updateStatus }}>
       {children}
     </OrderContext.Provider>
   );
