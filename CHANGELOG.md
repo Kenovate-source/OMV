@@ -2,9 +2,65 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
-## v0.3 — Customer Dashboard (Phase 3)
+## v0.4 — Admin Portal (Phase 4)
 
 **Status:** Awaiting your approval.
+
+### Added
+- `/admin` Admin Portal with a shared `AdminShell` (RBAC-filtered sidebar
+  desktop / tab bar mobile), gated by a mock sign-in picker listing 5
+  seeded administrators across 3 roles (Super/Business/Staff Admin).
+- Ten sections: Sign In, Dashboard, Inventory, Products (Super/Business
+  only), Customers, Orders, Promotions (Super/Business only), Reviews
+  (Super/Business only), Reports (Super/Business only), Audit Logs (Super
+  only), Notifications.
+- Seven new admin contexts: `AdminAuthProvider` (RBAC session + role seed),
+  `AdminProductsProvider`, `AdminCustomersProvider`,
+  `AdminPromotionsProvider`, `AdminReviewsProvider`, `AdminAuditProvider`,
+  `AdminNotificationsProvider` — same localStorage pattern as every prior
+  context.
+- `RequireRole` component — page-level RBAC guard used on Products,
+  Promotions, Reviews, Reports, and Audit Logs.
+- Real cross-phase integration: Dashboard/Reports pull live numbers from
+  the same `useOrders()` history customers generate at checkout; the
+  Orders page reuses Phase 3's `OrderTracker` component and can advance a
+  real order's status; Admin Notifications generates a live entry whenever
+  a genuinely new order is placed; every admin action (stock change,
+  product add/remove, promotion create/toggle, review moderation, order
+  status change) writes a real Audit Log entry.
+- `lib/orders/order-context.tsx` gained `updateStatus()` — additive, used
+  by the Admin Orders page; existing `addOrder`/`orders` usage in Phase 3's
+  customer dashboard is unaffected.
+- Footer: added a discreet "Admin Portal" link (bottom-right, alongside
+  Privacy/Terms) for discoverability — the main customer nav is untouched.
+- 12 new preview PNGs (desktop + mobile, dark + light for the Dashboard)
+  covering all ten admin sections, captured signed in as different roles
+  to demonstrate RBAC filtering.
+
+### Changed
+- `lib/orders/order-context.tsx` — additive `updateStatus` function only;
+  no change to existing `addOrder` behavior or the `Order`/`OrderStatus`
+  types Phase 3 already uses.
+
+### Not changed
+Nothing from Phase 1–3's approved functionality was altered. The Products
+page's admin-side catalogue is intentionally NOT wired into the live
+storefront (see IMPLEMENTATION_LOG.md) — Phase 2's `/women`, `/men`,
+`/kids` pages and their data source are untouched.
+
+### Deferred to later phases
+- Real multi-admin authentication and unlimited admin accounts (Phase 5)
+- Admin product catalogue synced to the live storefront (Phase 5, once a
+  real backend exists to serve both consistently)
+- Real customer accounts backing the Customers page (Phase 5)
+- Customer-facing review submission feeding the Reviews moderation queue
+  (candidate for a future storefront update once Phase 5's backend exists)
+
+---
+
+## v0.3 — Customer Dashboard (Phase 3)
+
+**Status:** ✅ Approved — reviewed on the live Vercel deployment.
 
 ### Patch #2 — Vercel build-blocking error fix
 - Fixed `app/checkout/page.tsx`: raw apostrophe in JSX text

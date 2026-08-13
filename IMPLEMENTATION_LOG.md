@@ -6,6 +6,121 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 4 — Admin Portal
+
+**Status:** Complete, pending review.
+
+### Completed
+- `AdminShell` (`components/admin/AdminShell.tsx`) — RBAC-filtered sidebar
+  (desktop) / tab bar (mobile), following the exact structural pattern of
+  Phase 3's `DashboardShell`. Renders a mock sign-in picker
+  (`LoginPicker`) instead of admin content when nobody is "signed in."
+- `RequireRole` (`components/admin/RequireRole.tsx`) — page-level guard
+  used on Products, Promotions, Reviews, Reports, and Audit Logs, so
+  navigating directly to a restricted URL shows a real "no access" state
+  rather than just hiding the nav link.
+- Seven new admin contexts (`lib/admin/*`), all following the established
+  localStorage + hydration-guard pattern: `AdminAuthProvider` (RBAC
+  session, 5 seeded admins across 3 roles), `AdminProductsProvider`,
+  `AdminCustomersProvider`, `AdminPromotionsProvider`,
+  `AdminReviewsProvider`, `AdminAuditProvider`, `AdminNotificationsProvider`.
+- Ten pages under `app/admin/*`: Dashboard, Inventory, Products, Customers,
+  Orders, Promotions, Reviews, Reports, Audit Logs, Notifications — the
+  full list from the original brief's Phase 4 scope.
+- `lib/orders/order-context.tsx` extended with `updateStatus(id, status)`
+  — additive only, so the Admin Orders page can advance a real order's
+  status without touching `addOrder` or the types Phase 3 already depends
+  on.
+- Real cross-context integration rather than isolated mock screens:
+  - Dashboard and Reports compute all numbers live from `useOrders()`.
+  - Admin Orders reuses Phase 3's `OrderTracker` component directly.
+  - `AdminNotificationsProvider` watches `useOrders()` and generates a
+    genuine notification the moment a new order is placed through the
+    real storefront checkout (verified by placing a test order and
+    confirming it appeared with an unread badge).
+  - Every mutating admin action (stock adjustment, product add/remove,
+    promotion create/toggle/remove, review approve/reject, order status
+    change) calls `useAdminAudit().logAction()`, satisfying the Product
+    Bible's "every action is logged" rule at the admin-portal level.
+- Footer: added a discreet "Admin Portal" link for discoverability,
+  without touching the primary customer navigation.
+- 12 new offline-rendered preview PNGs, same headless-Chromium approach as
+  every prior phase, captured across different signed-in roles to
+  demonstrate RBAC filtering visually (e.g. the Orders mobile preview is
+  captured as Staff Admin, showing a shorter tab bar than the Dashboard
+  preview captured as Super Admin).
+
+### Architecture decision: single app, not a separate `apps/admin`
+The Master Development Guide's project structure sketches a monorepo with
+`apps/web` and `apps/admin`. Phase 1 pragmatically built everything as one
+Next.js app instead, and every phase since has continued that pattern.
+Phase 4 does the same — `/admin` is a route tree in the existing app, not a
+separate deployable — so the whole project keeps deploying to the single
+existing Vercel project without a restructuring step. This is a carried-
+forward deviation from Phase 1, not a new one, but flagged again here
+explicitly since Phase 4 is the phase where the monorepo's admin/web split
+would have mattered most.
+
+### Assumptions made (flagging per your instruction to pause on ambiguity)
+- **Admin product catalogue is not synced to the live storefront.**
+  `AdminProductsProvider` seeds from the same `PRODUCTS` data but manages
+  its own local, admin-scoped copy. Wiring admin edits back into the
+  customer-facing storefront isn't just a missing feature — it's
+  architecturally premature: some storefront pages (`/women`, `/men`,
+  `/kids`) render server-side and read `PRODUCTS` at build/request time,
+  so they structurally cannot read browser-local admin edits without a
+  real backend to serve both consistently. Faking a partial client-side
+  sync now would misrepresent the architecture rather than honestly defer
+  it. Flagged clearly in both the Products page copy and here.
+- **Customers page uses a mock directory** — real customer accounts don't
+  exist until Phase 5's auth backend; explicitly labeled as illustrative
+  in the page itself.
+- **Reviews page moderates a mock dataset** — the Product Bible lists
+  reviews as a core feature, but customer-facing review submission was not
+  in this brief's Phase 2 scope and still isn't built. Building the
+  moderation UI now (against illustrative data) lets that UX be reviewed
+  ahead of wiring up real submission later, rather than waiting until both
+  halves exist simultaneously.
+- **RBAC role matrix** is my first-pass assignment, not specified in the
+  source docs beyond "implement RBAC" and the three role names: Super Admin
+  gets everything; Business Admin gets everything except Audit Logs; Staff
+  Admin gets Dashboard/Inventory/Customers/Orders/Notifications only (no
+  Products/Promotions/Reviews/Reports edit access). Flagged explicitly for
+  your review — easy to adjust since it's centralized in one `NAV` array
+  in `AdminShell.tsx` plus each page's `RequireRole` roles list.
+- **No password/credential step in the mock admin login** — picking a
+  seeded admin is one click, consistent with how every "local until Phase
+  5" auth surface has worked since Family Shopping in Phase 2.
+
+### Deviations
+- None from the source documents beyond the single-app architecture
+  decision carried forward from Phase 1 (see above).
+
+### TypeScript strict-mode audit (continued practice from Phase 2/3 fixes)
+Grepped every new Phase 4 file for array-indexing and `.find()` patterns
+that could trip `noUncheckedIndexedAccess`:
+- `ADMIN_SEED.find(...)` (used twice in `admin-auth-context.tsx`) — both
+  already guarded with `?? null`.
+- `app/admin/reports/page.tsx`'s `topProducts.sort((a, b) => b[1] - a[1])`
+  — `a`/`b` are `[string, number]` tuples from `Map.entries()`, and fixed-
+  length tuple indexing is exempt from `noUncheckedIndexedAccess` (same
+  reasoning as the `swatch: [string, string]` tuple already in
+  `lib/data/products.ts` since Phase 2) — confirmed safe, not just assumed.
+- No other instances found.
+
+### Not yet built (later phases)
+- Real backend/API, real multi-admin authentication, unlimited admin
+  accounts, real payments, real notifications, admin-storefront product
+  sync (Phase 5)
+- PWA service worker, deployment hardening, testing (Phase 6)
+
+### Deployment note
+No changes to `next.config.js` or dependencies. All new code uses the same
+Next.js/React/Tailwind primitives already deployed successfully — should
+deploy to the existing Vercel project the same way.
+
+---
+
 ## Phase 3 — Build fix #2 (post-delivery, pre-approval)
 
 **Issue reported:** Vercel's `next build` now reached the lint/type-check
@@ -92,7 +207,7 @@ the build and flag immediately if anything else surfaces.
 
 ## Phase 3 — Customer Dashboard
 
-**Status:** Complete, pending review.
+**Status:** Complete, approved (reviewed on live Vercel deployment).
 
 ### Completed
 - `DashboardShell` (`components/account/DashboardShell.tsx`) — one shared

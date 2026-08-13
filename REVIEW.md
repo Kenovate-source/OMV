@@ -2,7 +2,8 @@
 
 **Phase 1 (Foundation):** ✅ Approved — live at https://omv-iota.vercel.app/
 **Phase 2 (Storefront):** ✅ Approved
-**Phase 3 (Customer Dashboard):** Awaiting your approval
+**Phase 3 (Customer Dashboard):** ✅ Approved
+**Phase 4 (Admin Portal):** Awaiting your approval
 
 This document walks through every screen built so far: what it's for, the
 UX decisions behind it, which reusable components it's built from, and how it
@@ -424,23 +425,232 @@ benefit from extra width.
 
 ---
 
-## What still needs your review (Phase 3)
+## Phase 3 review notes (for reference — already approved)
 
-- **Order Tracking's "Processing" default status** — every order starts
-  there since there's no real fulfillment backend yet to report actual
-  status. Confirm you're comfortable with this mock default ahead of
-  Phase 5's real status events.
-- **Account dashboard accessible without real login** — same interim
-  approach as Family Shopping in Phase 2: browser-local storage with a
-  visible notice, so the full experience is reviewable now. Let me know if
-  you'd rather gate any specific page behind a "coming soon" state instead.
-- **AI Fashion Assistant as keyword-matching preview** — confirm this
-  honestly-scoped-down version is the right approach for now versus, say,
-  not shipping the page at all until Phase 5.
-- **Addresses not yet wired into Checkout's address form** — they're
-  separate today (Checkout still collects address inline). Flag if you'd
-  like that connected now rather than later.
-- Anything missing from Phase 3's scope before Phase 4 begins.
+- Order Tracking's mocked "Processing" default status, the account
+  dashboard's pre-login local-storage approach, and the AI Fashion
+  Assistant's keyword-matching preview were all reviewed and approved as
+  part of Phase 3 sign-off.
+
+---
+
+# Phase 4 — Admin Portal
+
+All ten sections below live under `/admin`, sharing one `AdminShell`. Since
+there's no real backend yet, the portal opens on a **mock sign-in picker**
+listing the 5 seeded administrators (Master Development Guide: "support
+five administrators initially... unlimited in the future"), each assigned
+one of three roles — **Super Admin**, **Business Admin**, **Staff Admin** —
+so RBAC is genuinely testable today, not just described. Switching admins
+re-filters both the sidebar and each page's content live.
+
+## 18. Sign In (Admin)
+
+### Desktop
+![Admin login dark](preview/admin-login-dark.png)
+
+**UX decisions:** picking an admin is one click — no password, since real
+credentialed auth is explicitly Phase 5 work. Each admin's role is shown as
+a badge right on their row, so the RBAC preview is transparent about what
+you're about to test.
+
+**Components used:** `AdminShell`'s `LoginPicker`, `useAdminAuth()`.
+
+**Accessibility:** each admin is a real `<button>`, not a styled div —
+fully keyboard operable.
+
+## 19. Dashboard
+
+### Desktop — Dark theme
+![Admin dashboard dark](preview/admin-dashboard-dark.png)
+
+### Desktop — Light theme
+![Admin dashboard light](preview/admin-dashboard-light.png)
+
+### Mobile
+![Admin dashboard mobile](preview/mobile-admin-dashboard.png)
+
+**UX decisions:** every stat here is real, not placeholder — revenue,
+order count and recent orders come from the same `useOrders()` history
+customers generate through checkout; "Products" and "Low Stock" come from
+the admin product/inventory context; "Pending Reviews" from the reviews
+context. This is a genuine cross-section of the portal's actual state on
+load, not a static mock screen.
+
+**Components used:** `Card`, `useAdminProducts()`, `useOrders()`,
+`useAdminReviews()`.
+
+**Responsive behavior:** stat cards 3-column → 1-column; sidebar becomes
+the mobile tab bar (RBAC-filtered there too — note Staff Admin's tab bar
+on the Orders preview below has fewer items than Super Admin's sidebar
+here).
+
+## 20. Inventory
+
+### Desktop
+![Admin inventory dark](preview/admin-inventory-dark.png)
+
+**UX decisions:** stock adjustment is inline +/- steppers directly in the
+table rather than a separate edit page — this is the single most frequent
+admin action (per the Product Bible's "inventory updates" business rule)
+and shouldn't need a page navigation. Items under 15 units are flagged
+"Low stock" in red inline, matching the Dashboard's low-stock count.
+
+**Components used:** `Card`, `useAdminProducts()`, `useAdminAudit()` (every
+adjustment is logged — see Audit Logs below).
+
+**Accessibility:** +/- buttons carry per-product `aria-label`s
+("Decrease stock for Emerald Wrap Dress").
+
+## 21. Products — Super Admin & Business Admin only
+
+### Desktop
+![Admin products dark](preview/admin-products-dark.png)
+
+**UX decisions:** this is a genuinely separate, admin-scoped product
+catalogue (seeded from the same data as the storefront), not a live editor
+for the public site — clearly labeled as such. Wiring admin edits back into
+the actual customer-facing storefront needs a real backend to do honestly
+(some storefront category pages render server-side and can't read
+browser-local admin edits), so this is flagged as Phase 5 work rather than
+faked with a partial client-side sync.
+
+**Components used:** `Input`, `Button`, `Card`, `useAdminProducts()`,
+`RequireRole`.
+
+**Role gating:** Staff Admin cannot see this page in their sidebar, and
+navigating to the URL directly shows a permission message instead of the
+form (verified — see `RequireRole`'s "no access" state, same component
+used across Products/Promotions/Reviews/Reports).
+
+## 22. Orders
+
+### Desktop
+![Admin orders dark](preview/admin-orders-dark.png)
+
+### Mobile
+![Admin orders mobile](preview/mobile-admin-orders.png)
+
+**UX decisions:** this reuses the exact same `OrderTracker` component from
+the customer dashboard (Phase 3) — an admin advancing an order's status
+here is the same order object a customer sees update in their own Orders
+page. A status dropdown sits right in the order card rather than a
+separate action menu.
+
+**Components used:** `Card`, `OrderTracker` (shared with Phase 3),
+`useOrders()` (now extended with `updateStatus`), `useAdminAudit()`.
+
+**Role visibility:** shown to all three roles, including Staff Admin (the
+preview above is captured signed in as Femi Alabi, Staff Admin) — order
+handling is core day-to-day work, not a privileged action.
+
+## 23. Customers
+
+**Purpose:** illustrative customer directory with an Active/Blocked
+toggle. Explicitly flagged as mock data — real customer accounts don't
+exist until Phase 5's auth backend.
+
+**Components used:** `Card`, `useAdminCustomers()`.
+
+**Role visibility:** all three roles.
+
+## 24. Promotions — Super Admin & Business Admin only
+
+### Desktop
+![Admin promotions dark](preview/admin-promotions-dark.png)
+
+**UX decisions:** active/inactive is a single toggle chip rather than a
+separate publish flow — promotions are meant to be turned on and off
+quickly.
+
+**Components used:** `Input`, `Button`, `Card`, `useAdminPromotions()`,
+`RequireRole`.
+
+## 25. Reviews — Super Admin & Business Admin only
+
+### Desktop
+![Admin reviews dark](preview/admin-reviews-dark.png)
+
+**UX decisions:** Approve/Reject actions only appear on Pending reviews —
+once moderated, the card just shows the resulting status, keeping the list
+scannable. Copy is explicit that this moderates an illustrative dataset,
+since customer review submission isn't built into the storefront (it's in
+the Product Bible's feature list but wasn't in this brief's Phase 2 scope,
+and building submission now without moderation existing yet would be
+backwards) — this page exists so moderation UX can be reviewed ahead of
+that.
+
+**Components used:** `Card`, `useAdminReviews()`, `useAdminAudit()`,
+`RequireRole`.
+
+## 26. Reports — Super Admin & Business Admin only
+
+### Desktop
+![Admin reports dark](preview/admin-reports-dark.png)
+
+**UX decisions:** every number here is computed live from `useOrders()` —
+total revenue, average order value, status breakdown, and top products by
+units sold — rather than a static mock chart. Place a few test orders
+through checkout and these numbers move.
+
+**Components used:** `Card`, `useOrders()`, `RequireRole`.
+
+## 27. Audit Logs — Super Admin only
+
+### Desktop
+![Admin audit logs dark](preview/admin-audit-logs-dark.png)
+
+**UX decisions:** genuinely logs real actions — adjusting stock, adding or
+removing a product, creating or toggling a promotion, moderating a review,
+changing an order's status all write a real entry here via
+`useAdminAudit().logAction()`, satisfying the Product Bible's "every
+action is logged" business rule at the admin-portal level. Restricted to
+Super Admin only, matching the role matrix.
+
+**Components used:** `Card`, `useAdminAudit()`, `RequireRole`.
+
+## 28. Notifications
+
+**Purpose:** admin-side alert center. Seeded with a couple of system
+messages, but also generates a real notification whenever a genuinely new
+order is placed through the storefront — verified by placing a test order
+and confirming it appears here with an unread badge on the sidebar/tab
+bar.
+
+**Components used:** `useAdminNotifications()` (internally watches
+`useOrders()` for new order ids).
+
+**Role visibility:** all three roles.
+
+---
+
+## Architecture note: single Next.js app, not a separate `apps/admin`
+
+The Master Development Guide's project structure sketches a monorepo with
+`apps/web` and `apps/admin` as separate applications. Phases 1–3 were built
+as a single Next.js app instead (a pragmatic choice made in Phase 1 and
+carried forward), so Phase 4 continues that pattern: the admin portal lives
+at `/admin` within the same app rather than as a separate deployable. This
+keeps every phase's output actually deployable to the single existing
+Vercel project without a restructuring step. Flagging this explicitly in
+case a genuinely separate admin app/deployment is wanted — that would be a
+larger, deliberate architecture change rather than an incremental one.
+
+## What still needs your review (Phase 4)
+
+- **Single-app architecture instead of a separate `apps/admin`** — see
+  note above; confirm you're fine with this continuing into Phase 5, or
+  flag if a real split is wanted.
+- **Admin product catalogue not synced to the live storefront** — by
+  design until Phase 5's real backend; confirm this sequencing.
+- **Mock customer directory and mock review dataset** — both explicitly
+  illustrative; confirm this is fine pending Phase 5's real accounts and
+  Phase 2/3's eventual review-submission feature.
+- **RBAC role assignments** (which sections each role can see) — confirm
+  the matrix (Super: everything; Business: everything except Audit Logs;
+  Staff: Dashboard/Inventory/Customers/Orders/Notifications) matches your
+  expectations, or flag any section that should move between roles.
+- Anything missing from Phase 4's scope before Phase 5 begins.
 
 ---
 
