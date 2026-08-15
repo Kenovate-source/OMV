@@ -8,25 +8,43 @@ import { ProductTile } from "@/components/shop/ProductTile";
 import { cn } from "@/lib/cn";
 import { useCart } from "@/lib/cart/cart-context";
 import { useWishlist } from "@/lib/wishlist/wishlist-context";
-import { formatNaira, getRelatedProducts, type Product } from "@/lib/data/products";
+import { useInventory } from "@/lib/inventory/inventory-context";
+import {
+  formatNaira,
+  getRelatedProducts,
+  getColors,
+  getSizes,
+  type Product,
+} from "@/lib/data/products";
 
-export function ProductDetail({ product }: { product: Product }) {
-  // product.sizes[0] is `string | undefined` under noUncheckedIndexedAccess
-  // (tsconfig strict mode), so the state itself is typed as the guaranteed
-  // `string` it should be, with an explicit fallback for the edge case of
-  // a product with no sizes defined at all.
-  const [size, setSize] = useState<string>(product.sizes[0] ?? "");
+export function ProductDetail({ product: staticProduct }: { product: Product }) {
+  // Name/description/images are static, but stock must always reflect the
+  // live shared inventory (the same store Admin Inventory/Products write
+  // to) — fall back to the static copy only if inventory hasn't hydrated
+  // yet or the product was somehow removed.
+  const { getProduct, getVariant } = useInventory();
+  const product = getProduct(staticProduct.id) ?? staticProduct;
+
+  const colors = getColors(product);
+  const sizes = getSizes(product);
+
+  // colors[0]/sizes[0] are `string | undefined` under noUncheckedIndexedAccess;
+  // guarded with a literal fallback rather than reassigning from the array.
+  const [color, setColor] = useState<string>(colors[0] ?? "");
+  const [size, setSize] = useState<string>(sizes[0] ?? "");
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
   const { has, toggle } = useWishlist();
   const wished = has(product.id);
   const [from, to] = product.swatch;
   const relatedProducts = getRelatedProducts(product.completeTheLook);
-  const hasSizeSelected = size.length > 0;
+
+  const selectedVariant = getVariant(product.id, color, size);
+  const canAdd = Boolean(color && size && selectedVariant && selectedVariant.stock > 0);
 
   function handleAddToCart() {
-    if (!hasSizeSelected) return;
-    addItem(product, size);
+    if (!canAdd) return;
+    addItem(product, color, size);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 2000);
   }
@@ -54,49 +72,88 @@ export function ProductDetail({ product }: { product: Product }) {
             </span>
           )}
           <h1 className="font-serif text-3xl text-foreground sm:text-4xl">{product.name}</h1>
-          <p className="mt-3 text-xl text-gold">{formatNaira(product.price)}</p>
+          <div className="mt-3 flex items-baseline gap-3">
+            <p className="text-xl text-gold">
+              {formatNaira(product.salePrice ?? product.price)}
+            </p>
+            {product.salePrice && (
+              <p className="text-sm text-foreground-muted line-through">
+                {formatNaira(product.price)}
+              </p>
+            )}
+          </div>
           <p className="mt-6 text-sm leading-relaxed text-foreground-muted">
             {product.description}
           </p>
 
           <div className="mt-8">
             <h2 className="mb-3 text-sm font-medium text-foreground">
-              {hasSizeSelected ? `Size — ${size}` : "Select a size"}
+              {color ? `Colour — ${color}` : "Select a colour"}
             </h2>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select size">
-              {product.sizes.map((s) => (
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select colour">
+              {colors.map((c) => (
                 <button
-                  key={s}
+                  key={c}
                   type="button"
                   role="radio"
-                  aria-checked={size === s}
-                  onClick={() => setSize(s)}
+                  aria-checked={color === c}
+                  onClick={() => setColor(c)}
                   className={cn(
-                    "h-11 min-w-11 rounded-input border px-3 text-sm transition-colors",
-                    size === s
+                    "h-11 rounded-input border px-4 text-sm transition-colors",
+                    color === c
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border text-foreground hover:border-gold"
                   )}
                 >
-                  {s}
+                  {c}
                 </button>
               ))}
             </div>
           </div>
 
           <div className="mt-8">
-            <h2 className="mb-3 text-sm font-medium text-foreground">Colours</h2>
-            <p className="text-sm text-foreground-muted">{product.colors.join(" · ")}</p>
+            <h2 className="mb-3 text-sm font-medium text-foreground">
+              {size ? `Size — ${size}` : "Select a size"}
+            </h2>
+            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select size">
+              {sizes.map((s) => {
+                const variant = getVariant(product.id, color, s);
+                const outOfStock = Boolean(color) && (!variant || variant.stock === 0);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    role="radio"
+                    aria-checked={size === s}
+                    aria-disabled={outOfStock}
+                    onClick={() => setSize(s)}
+                    className={cn(
+                      "relative h-11 min-w-11 rounded-input border px-3 text-sm transition-colors",
+                      size === s
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border text-foreground hover:border-gold",
+                      outOfStock && "text-foreground-muted opacity-50"
+                    )}
+                  >
+                    {s}
+                    {outOfStock && (
+                      <span className="pointer-events-none absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-current" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {color && selectedVariant && selectedVariant.stock > 0 && selectedVariant.stock <= 5 && (
+              <p className="mt-2 text-xs text-gold">Only {selectedVariant.stock} left</p>
+            )}
+            {color && (!selectedVariant || selectedVariant.stock === 0) && (
+              <p className="mt-2 text-xs text-red-400">This colour/size combination is out of stock.</p>
+            )}
           </div>
 
           <div className="mt-10 flex gap-3">
-            <Button
-              size="lg"
-              onClick={handleAddToCart}
-              disabled={!hasSizeSelected}
-              className="flex-1"
-            >
-              {added ? "Added to bag ✓" : "Add to Bag"}
+            <Button size="lg" onClick={handleAddToCart} disabled={!canAdd} className="flex-1">
+              {added ? "Added to bag ✓" : canAdd ? "Add to Bag" : "Out of Stock"}
             </Button>
             <button
               type="button"

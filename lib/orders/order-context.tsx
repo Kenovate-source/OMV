@@ -11,12 +11,16 @@ import {
 export interface OrderItem {
   productId: string;
   name: string;
+  color: string;
   size: string;
   qty: number;
   price: number;
 }
 
-export type OrderStatus = "Placed" | "Processing" | "Shipped" | "Delivered";
+// "Cancelled" added for Phase 4's inventory-restoration flow: cancelling
+// an order restores the stock it deducted (see lib/inventory and
+// app/admin/orders/page.tsx, which calls restoreStock alongside this).
+export type OrderStatus = "Placed" | "Processing" | "Shipped" | "Delivered" | "Cancelled";
 
 export interface Order {
   id: string;

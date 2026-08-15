@@ -2,32 +2,72 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { Button, buttonVariants } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useCart } from "@/lib/cart/cart-context";
 import { useOrders } from "@/lib/orders/order-context";
-import { PRODUCTS, formatNaira } from "@/lib/data/products";
+import { useInventory, type StockLineRequest } from "@/lib/inventory/inventory-context";
+import { formatNaira } from "@/lib/data/products";
 
 export default function CheckoutPage() {
   const { lines, clear } = useCart();
   const { addOrder } = useOrders();
+  const { getProduct, checkStock, deductStock } = useInventory();
   const [placed, setPlaced] = useState(false);
   const [orderId, setOrderId] = useState("");
+  const [stockError, setStockError] = useState<string | null>(null);
 
   const rows = lines
-    .map((line) => ({ line, product: PRODUCTS.find((p) => p.id === line.productId) }))
+    .map((line) => ({ line, product: getProduct(line.productId) }))
     .filter((r): r is { line: typeof lines[number]; product: NonNullable<typeof r.product> } => Boolean(r.product));
-  const subtotal = rows.reduce((sum, r) => sum + r.product.price * r.line.qty, 0);
+  const subtotal = rows.reduce(
+    (sum, r) => sum + (r.product.salePrice ?? r.product.price) * r.line.qty,
+    0
+  );
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    // Phase 5 will POST this to the real orders API and integrate a payment
-    // gateway. For now, Phase 3 persists the order into the local order
-    // history (lib/orders/order-context.tsx) so the Customer Dashboard's
-    // Orders, Order Tracking and Loyalty pages have real data to show —
-    // the full flow can be reviewed end to end today.
+    setStockError(null);
+
+    // Re-validate against LIVE stock at the moment of order creation, not
+    // whatever the cart last knew — someone else (in another tab, or via
+    // the admin portal) may have changed stock since the item was added.
+    // This is the "do not allow purchasing more than available" check.
+    const stockLines: StockLineRequest[] = rows.map((r) => ({
+      productId: r.line.productId,
+      color: r.line.color,
+      size: r.line.size,
+      qty: r.line.qty,
+    }));
+    const result = checkStock(stockLines);
+    if (!result.ok && result.failedLine) {
+      const failedRow = rows.find(
+        (r) =>
+          r.line.productId === result.failedLine!.productId &&
+          r.line.color === result.failedLine!.color &&
+          r.line.size === result.failedLine!.size
+      );
+      const name = failedRow?.product.name ?? "An item";
+      setStockError(
+        result.failedLine.available === 0
+          ? `${name} (${result.failedLine.color}, ${result.failedLine.size}) just sold out. Please remove it from your bag.`
+          : `Only ${result.failedLine.available} left of ${name} (${result.failedLine.color}, ${result.failedLine.size}) — please lower the quantity in your bag.`
+      );
+      return;
+    }
+
+    // Deduct stock and record the order together. NOTE: in this Phase 4
+    // client-side implementation these are two separate local-state writes,
+    // not one atomic transaction — fine for a single-browser demo, but if
+    // two customers could check out from the same stock simultaneously
+    // (which they can't here, since each browser has its own local
+    // inventory copy), this exact sequence could oversell. Phase 5 MUST
+    // perform the check-and-deduct as a single atomic database transaction
+    // server-side to make this safe with real concurrent traffic.
+    deductStock(stockLines);
+
     const id = `OMV-${Date.now().toString().slice(-8)}`;
     addOrder({
       id,
@@ -36,9 +76,10 @@ export default function CheckoutPage() {
       items: rows.map((r) => ({
         productId: r.product.id,
         name: r.product.name,
+        color: r.line.color,
         size: r.line.size,
         qty: r.line.qty,
-        price: r.product.price,
+        price: r.product.salePrice ?? r.product.price,
       })),
     });
     setOrderId(id);
@@ -113,9 +154,9 @@ export default function CheckoutPage() {
           <h2 className="font-serif text-lg text-foreground">Order Summary</h2>
           <ul className="mt-4 flex flex-col gap-3">
             {rows.map(({ line, product }) => (
-              <li key={`${line.productId}-${line.size}`} className="flex justify-between text-xs text-foreground-muted">
-                <span>{product.name} × {line.qty} ({line.size})</span>
-                <span>{formatNaira(product.price * line.qty)}</span>
+              <li key={`${line.productId}-${line.color}-${line.size}`} className="flex justify-between text-xs text-foreground-muted">
+                <span>{product.name} × {line.qty} ({line.color}, {line.size})</span>
+                <span>{formatNaira((product.salePrice ?? product.price) * line.qty)}</span>
               </li>
             ))}
           </ul>
@@ -123,6 +164,14 @@ export default function CheckoutPage() {
             <span>Total</span>
             <span>{formatNaira(subtotal)}</span>
           </div>
+
+          {stockError && (
+            <div className="mt-4 flex items-start gap-2 rounded-input border border-red-400/40 bg-red-400/10 p-3 text-xs text-red-400">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />
+              <p>{stockError}</p>
+            </div>
+          )}
+
           <Button type="submit" size="lg" className="mt-6 w-full">
             Place Order
           </Button>

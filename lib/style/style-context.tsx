@@ -12,21 +12,63 @@ export interface SavedOutfit {
   id: string;
   name: string;
   productIds: string[];
+  occasion?: string;
 }
 
+export type FitPreference = "Loose" | "Fitted" | "Either";
+export type Formality = "Very casual" | "Casual" | "Balanced" | "Smart" | "Very formal";
+
+// Structured, reusable preference data — this is what Outfit Builder,
+// Complete the Look, and any future recommendation logic actually read.
+// The friendly "styleLabel" is a display-only summary derived from this,
+// not the source of truth (Phase 3 originally only stored the label).
+export interface StylePreferences {
+  favoriteColors: string[];
+  fitPreference: FitPreference | null;
+  favoriteClothingTypes: string[];
+  favoriteStyles: string[];
+  preferredShoes: string[];
+  preferredAccessories: string[];
+  commonOccasions: string[];
+  formality: Formality | null;
+}
+
+export const EMPTY_PREFERENCES: StylePreferences = {
+  favoriteColors: [],
+  fitPreference: null,
+  favoriteClothingTypes: [],
+  favoriteStyles: [],
+  preferredShoes: [],
+  preferredAccessories: [],
+  commonOccasions: [],
+  formality: null,
+};
+
 interface StyleContextValue {
-  styleProfile: string | null;
-  setStyleProfile: (profile: string) => void;
+  preferences: StylePreferences;
+  styleLabel: string | null;
+  hasCompletedQuiz: boolean;
+  savePreferences: (prefs: StylePreferences) => void;
   savedOutfits: SavedOutfit[];
-  saveOutfit: (name: string, productIds: string[]) => void;
+  saveOutfit: (name: string, productIds: string[], occasion?: string) => void;
   removeOutfit: (id: string) => void;
 }
 
 const StyleContext = createContext<StyleContextValue | undefined>(undefined);
 const STORAGE_KEY = "omv-style";
 
+// Derives a friendly display label from structured answers — display-only,
+// never read back as input by anything else.
+function deriveLabel(prefs: StylePreferences): string | null {
+  if (!prefs.formality) return null;
+  if (prefs.favoriteStyles.includes("Bold")) return "Bold Statement";
+  if (prefs.favoriteStyles.includes("Traditional")) return "Relaxed Heritage";
+  if (prefs.formality === "Very formal" || prefs.formality === "Smart") return "Modern Minimalist";
+  return "Relaxed Everyday";
+}
+
 export function StyleProvider({ children }: { children: ReactNode }) {
-  const [styleProfile, setStyleProfileState] = useState<string | null>(null);
+  const [preferences, setPreferences] = useState<StylePreferences>(EMPTY_PREFERENCES);
   const [savedOutfits, setSavedOutfits] = useState<SavedOutfit[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
@@ -35,7 +77,9 @@ export function StyleProvider({ children }: { children: ReactNode }) {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        setStyleProfileState(parsed.styleProfile ?? null);
+        // Migrate Phase 3 shape ({ styleProfile: string }) — no structured
+        // preferences existed then, so start fresh but keep saved outfits.
+        setPreferences({ ...EMPTY_PREFERENCES, ...(parsed.preferences ?? {}) });
         setSavedOutfits(parsed.savedOutfits ?? []);
       }
     } catch {
@@ -46,25 +90,33 @@ export function StyleProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ styleProfile, savedOutfits })
-    );
-  }, [styleProfile, savedOutfits, hydrated]);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ preferences, savedOutfits }));
+  }, [preferences, savedOutfits, hydrated]);
 
-  const setStyleProfile = (profile: string) => setStyleProfileState(profile);
+  const savePreferences = (prefs: StylePreferences) => setPreferences(prefs);
 
-  const saveOutfit = (name: string, productIds: string[]) => {
+  const saveOutfit: StyleContextValue["saveOutfit"] = (name, productIds, occasion) => {
     const id = `${Date.now()}`;
-    setSavedOutfits((prev) => [...prev, { id, name, productIds }]);
+    setSavedOutfits((prev) => [...prev, { id, name, productIds, occasion }]);
   };
 
   const removeOutfit = (id: string) =>
     setSavedOutfits((prev) => prev.filter((o) => o.id !== id));
 
+  const hasCompletedQuiz = preferences.formality !== null;
+  const styleLabel = deriveLabel(preferences);
+
   return (
     <StyleContext.Provider
-      value={{ styleProfile, setStyleProfile, savedOutfits, saveOutfit, removeOutfit }}
+      value={{
+        preferences,
+        styleLabel,
+        hasCompletedQuiz,
+        savePreferences,
+        savedOutfits,
+        saveOutfit,
+        removeOutfit,
+      }}
     >
       {children}
     </StyleContext.Provider>

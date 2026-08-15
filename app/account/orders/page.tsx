@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Package } from "lucide-react";
+import { Package, XCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { buttonVariants } from "@/components/ui/Button";
 import { OrderTracker } from "@/components/account/OrderTracker";
@@ -46,17 +46,24 @@ export default function OrdersPage() {
                 </div>
 
                 <div className="mt-6">
-                  <OrderTracker status={order.status} />
+                  {order.status === "Cancelled" ? (
+                    <div className="flex items-center gap-2 rounded-input border border-red-400/30 bg-red-400/5 px-4 py-3 text-xs text-red-400">
+                      <XCircle size={14} aria-hidden="true" />
+                      This order was cancelled.
+                    </div>
+                  ) : (
+                    <OrderTracker status={order.status} />
+                  )}
                 </div>
 
                 <ul className="mt-6 flex flex-col gap-2 border-t border-border pt-4">
                   {order.items.map((item) => (
                     <li
-                      key={`${item.productId}-${item.size}`}
+                      key={`${item.productId}-${item.color}-${item.size}`}
                       className="flex justify-between text-xs text-foreground-muted"
                     >
                       <span>
-                        {item.name} × {item.qty} ({item.size})
+                        {item.name} × {item.qty} ({item.color}, {item.size})
                       </span>
                       <span>{formatNaira(item.price * item.qty)}</span>
                     </li>

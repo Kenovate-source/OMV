@@ -14,6 +14,7 @@ import {
   BarChart3,
   ScrollText,
   Bell,
+  Megaphone,
   LogOut,
   ShieldCheck,
 } from "lucide-react";
@@ -36,6 +37,7 @@ const NAV: NavItem[] = [
   { href: "/admin/orders", label: "Orders", icon: Package, roles: ["super", "business", "staff"] },
   { href: "/admin/promotions", label: "Promotions", icon: Tag, roles: ["super", "business"] },
   { href: "/admin/reviews", label: "Reviews", icon: Star, roles: ["super", "business"] },
+  { href: "/admin/announcements", label: "Announcements", icon: Megaphone, roles: ["super", "business"] },
   { href: "/admin/reports", label: "Reports", icon: BarChart3, roles: ["super", "business"] },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: ScrollText, roles: ["super"] },
   { href: "/admin/notifications", label: "Notifications", icon: Bell, roles: ["super", "business", "staff"] },

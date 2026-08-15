@@ -10,8 +10,11 @@ import { AddressProvider } from "@/lib/addresses/address-context";
 import { OrderProvider } from "@/lib/orders/order-context";
 import { NotificationProvider } from "@/lib/notifications/notification-context";
 import { StyleProvider } from "@/lib/style/style-context";
+import { InventoryProvider } from "@/lib/inventory/inventory-context";
+import { AnnouncementProvider } from "@/lib/announcements/announcement-context";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { AnnouncementBanner } from "@/components/layout/AnnouncementBanner";
 import "./globals.css";
 
 // Elegant Serif (headings) + Modern Sans (body) per Brand Book §14.
@@ -69,21 +72,26 @@ export default function RootLayout({
           <AuthProvider>
             <ProfileProvider>
               <AddressProvider>
-                <OrderProvider>
-                  <NotificationProvider>
-                    <StyleProvider>
-                      <FamilyProvider>
-                        <WishlistProvider>
-                          <CartProvider>
-                            <Navbar />
-                            <main id="main-content">{children}</main>
-                            <Footer />
-                          </CartProvider>
-                        </WishlistProvider>
-                      </FamilyProvider>
-                    </StyleProvider>
-                  </NotificationProvider>
-                </OrderProvider>
+                <InventoryProvider>
+                  <OrderProvider>
+                    <NotificationProvider>
+                      <StyleProvider>
+                        <FamilyProvider>
+                          <WishlistProvider>
+                            <CartProvider>
+                              <AnnouncementProvider>
+                                <AnnouncementBanner />
+                                <Navbar />
+                                <main id="main-content">{children}</main>
+                                <Footer />
+                              </AnnouncementProvider>
+                            </CartProvider>
+                          </WishlistProvider>
+                        </FamilyProvider>
+                      </StyleProvider>
+                    </NotificationProvider>
+                  </OrderProvider>
+                </InventoryProvider>
               </AddressProvider>
             </ProfileProvider>
           </AuthProvider>

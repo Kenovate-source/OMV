@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { FilterSidebar, type Filters } from "./FilterSidebar";
 import { ProductTile } from "./ProductTile";
-import type { Product } from "@/lib/data/products";
+import { getSizes, type Product } from "@/lib/data/products";
 
 export function CatalogueView({
   title,
@@ -21,14 +21,14 @@ export function CatalogueView({
   });
 
   const availableSizes = useMemo(
-    () => Array.from(new Set(products.flatMap((p) => p.sizes))).slice(0, 8),
+    () => Array.from(new Set(products.flatMap((p) => getSizes(p)))).slice(0, 8),
     [products]
   );
 
   const filtered = useMemo(() => {
     let result = products.filter((p) => {
       if (filters.badge && p.badge !== filters.badge) return false;
-      if (filters.size && !p.sizes.includes(filters.size)) return false;
+      if (filters.size && !getSizes(p).includes(filters.size)) return false;
       return true;
     });
     if (filters.sort === "price-asc") result = [...result].sort((a, b) => a.price - b.price);

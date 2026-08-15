@@ -5,16 +5,21 @@ import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { buttonVariants } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useCart } from "@/lib/cart/cart-context";
-import { PRODUCTS, formatNaira } from "@/lib/data/products";
+import { useInventory } from "@/lib/inventory/inventory-context";
+import { formatNaira } from "@/lib/data/products";
 
 export default function CartPage() {
   const { lines, updateQty, removeItem } = useCart();
+  const { getProduct, getVariant } = useInventory();
 
   const rows = lines
-    .map((line) => ({ line, product: PRODUCTS.find((p) => p.id === line.productId) }))
+    .map((line) => ({ line, product: getProduct(line.productId) }))
     .filter((r): r is { line: typeof lines[number]; product: NonNullable<typeof r.product> } => Boolean(r.product));
 
-  const subtotal = rows.reduce((sum, r) => sum + r.product.price * r.line.qty, 0);
+  const subtotal = rows.reduce(
+    (sum, r) => sum + (r.product.salePrice ?? r.product.price) * r.line.qty,
+    0
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-16">
@@ -33,8 +38,12 @@ export default function CartPage() {
           <ul className="flex flex-col divide-y divide-border">
             {rows.map(({ line, product }) => {
               const [from, to] = product.swatch;
+              const variant = getVariant(product.id, line.color, line.size);
+              const maxStock = variant?.stock ?? 0;
+              const atMax = line.qty >= maxStock;
+              const price = product.salePrice ?? product.price;
               return (
-                <li key={`${line.productId}-${line.size}`} className="flex gap-4 py-6">
+                <li key={`${line.productId}-${line.color}-${line.size}`} className="flex gap-4 py-6">
                   <div
                     className="h-24 w-20 shrink-0 rounded-[12px]"
                     style={{ background: `linear-gradient(155deg, ${from}, ${to})` }}
@@ -46,9 +55,11 @@ export default function CartPage() {
                         <Link href={`/product/${product.slug}`} className="font-serif text-base text-foreground hover:text-gold">
                           {product.name}
                         </Link>
-                        <p className="mt-1 text-xs text-foreground-muted">Size {line.size}</p>
+                        <p className="mt-1 text-xs text-foreground-muted">
+                          {line.color}{line.color && line.size ? " · " : ""}{line.size ? `Size ${line.size}` : ""}
+                        </p>
                       </div>
-                      <p className="text-sm text-foreground">{formatNaira(product.price * line.qty)}</p>
+                      <p className="text-sm text-foreground">{formatNaira(price * line.qty)}</p>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -56,7 +67,7 @@ export default function CartPage() {
                         <button
                           type="button"
                           aria-label={`Decrease quantity of ${product.name}`}
-                          onClick={() => updateQty(line.productId, line.size, line.qty - 1)}
+                          onClick={() => updateQty(line.productId, line.color, line.size, line.qty - 1)}
                           className="flex h-6 w-6 items-center justify-center text-foreground hover:text-gold"
                         >
                           <Minus size={14} aria-hidden="true" />
@@ -65,8 +76,11 @@ export default function CartPage() {
                         <button
                           type="button"
                           aria-label={`Increase quantity of ${product.name}`}
-                          onClick={() => updateQty(line.productId, line.size, line.qty + 1)}
-                          className="flex h-6 w-6 items-center justify-center text-foreground hover:text-gold"
+                          disabled={atMax}
+                          onClick={() =>
+                            !atMax && updateQty(line.productId, line.color, line.size, line.qty + 1)
+                          }
+                          className="flex h-6 w-6 items-center justify-center text-foreground hover:text-gold disabled:cursor-not-allowed disabled:opacity-30"
                         >
                           <Plus size={14} aria-hidden="true" />
                         </button>
@@ -74,12 +88,15 @@ export default function CartPage() {
                       <button
                         type="button"
                         aria-label={`Remove ${product.name} from bag`}
-                        onClick={() => removeItem(line.productId, line.size)}
+                        onClick={() => removeItem(line.productId, line.color, line.size)}
                         className="flex items-center gap-1 text-xs text-foreground-muted hover:text-red-400"
                       >
                         <Trash2 size={14} aria-hidden="true" /> Remove
                       </button>
                     </div>
+                    {atMax && (
+                      <p className="mt-1 text-xs text-gold">Maximum available stock reached ({maxStock}).</p>
+                    )}
                   </div>
                 </li>
               );
