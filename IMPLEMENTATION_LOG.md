@@ -6,6 +6,302 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 4 — Refinement & Phase 5 Preparation
+
+**Status:** Complete, pending review. Implements the detailed Phase 4
+refinement brief (RBAC dashboards, product variants, Family Shopping
+redesign, mannequin-based Outfit Builder/Complete the Look, Style Quiz
+redesign, site announcements) plus the separately-specified order →
+inventory → storefront synchronization requirement.
+
+### Audit performed before coding (as explicitly required)
+Read every relevant existing file before changing anything:
+`AdminShell.tsx`'s NAV array (RBAC matrix), `app/admin/page.tsx` (single
+shared dashboard), `lib/admin/admin-products-context.tsx` and
+`lib/data/products.ts` (flat `colors[]`/`sizes[]`, one stock number per
+product, no variants), `lib/family/family-context.tsx` (closed relation
+enum, single free-text size field), `app/complete-the-look/page.tsx` and
+`app/account/outfit-builder/page.tsx` (flat product-card grids, no
+occasion concept, no mannequin, no quiz connection), `app/admin/page.tsx`
+and `AdminShell.tsx`'s nav (confirmed the RBAC nav matrix already matched
+the brief exactly — Super: everything, Business: everything except Audit
+Logs, Staff: Dashboard/Inventory/Customers/Orders/Notifications — so it
+was preserved unchanged), and a full-project search for any existing
+announcement code (found none). This audit is what produced the build
+order used below and is why the RBAC nav array itself was not touched.
+
+### 1. RBAC-aware Dashboard
+`app/admin/page.tsx` now branches by `currentAdmin.role`. Staff sees Total
+Orders, Orders Needing Attention (Placed/Processing count), Low Stock
+Variants, and Customers — no revenue, no product count, no pending
+reviews, matching "do not show management metrics Staff can't act on."
+Super/Business share the fuller metric set (Orders, Revenue, Products,
+Low Stock, Pending Reviews); only Super additionally sees a "Recent Admin
+Activity" card sourced from the audit log.
+
+### 2–6. Product Management, Variants, Detail View, Add Product, Permissions
+This was the largest and most architecturally significant change.
+`Product` (`lib/data/products.ts`) now carries `variants: ProductVariant[]`
+(`{ color, size, stock }`) as the *only* place stock lives, plus `status`,
+`subcategory`, `salePrice`. The previous flat `colors[]`/`sizes[]`/
+admin-only `stock: number` fields are gone entirely — there is no second,
+possibly-conflicting stock value anywhere in the app now.
+
+A new root-level `InventoryProvider` (`lib/inventory/inventory-context.tsx`)
+owns this data and exposes `getProduct`, `getVariant`, `addProduct`,
+`updateProduct`, `updateVariants`, `updateVariantStock`, `removeProduct`,
+`checkStock`, `deductStock`, `restoreStock`. It replaces the old
+admin-only `AdminProductsProvider` (deleted) and is mounted in the root
+`app/layout.tsx`, not `app/admin/layout.tsx` — because the storefront
+(PDP, cart, checkout) needs to read and write the exact same state the
+admin portal does, per the explicit "do not create separate conflicting
+stock values" requirement.
+
+`app/admin/products/page.tsx` (Super/Business only, unchanged from the
+existing RBAC) now collects description, category, subcategory, price,
+sale price, status, and generates a full colour × size variant matrix from
+comma-separated colour/size input with a starting stock value. A new
+`app/admin/products/[id]/page.tsx` gives the full detail/edit view: all
+metadata editable, colours and sizes addable/removable (regenerating the
+variant matrix), and per-variant stock steppers grouped by colour —
+matching the brief's exact example format.
+
+`app/admin/inventory/page.tsx` was rebuilt from one row per product to one
+row per *variant* (product × colour × size), which is also how Staff's
+"view + stock-only" permission (requirement 6) is satisfied: Staff already
+had no nav access to `/admin/products` (unchanged), and now Inventory
+itself is the variant-level, stock-only surface the brief describes for
+Staff — no separate permission flag was needed because the existing page
+split already matches the requirement once Inventory became variant-aware.
+
+### Order → Inventory → Storefront synchronization
+- **Checkout** (`app/checkout/page.tsx`) calls `useInventory().checkStock()`
+  against the live variant stock immediately before creating an order —
+  not whatever the cart last knew — and blocks submission with a specific
+  message if any line exceeds availability. Only on success does it call
+  `deductStock()` and then `addOrder()`.
+- **Cart** (`app/cart/page.tsx`) clamps the quantity stepper's "+" button
+  to the live variant's current stock.
+- **PDP** (`components/shop/ProductDetail.tsx`) now has real colour
+  selection (previously static text) alongside size selection, reads live
+  stock via `useInventory()` for the exact selected variant, disables "Add
+  to Bag" and shows "Out of Stock" when that variant has none, and shows a
+  strikethrough on individual out-of-stock size options — while sizes/
+  colours with stock remain selectable, satisfying "the product remains
+  visible, but [that variant] cannot be selected."
+- **Admin Orders** (`app/admin/orders/page.tsx`) gained a `Cancelled`
+  status option. Transitioning an order into `Cancelled` (and only on that
+  transition, not on every re-save) calls `restoreStock()` with that
+  order's exact line items, and logs the action.
+- **Cart lines and order items now carry `color`, not just `size`**
+  (`lib/cart/cart-context.tsx`, `lib/orders/order-context.tsx`) — a variant
+  is colour *and* size together, and the previous size-only shape couldn't
+  identify one. Both contexts migrate existing localStorage data from the
+  old shape automatically (missing `color` defaults to `""`) rather than
+  discarding a reviewer's existing cart/order history.
+
+**Explicitly not claimed as safe for concurrent buyers.** The
+`InventoryProvider`'s doc comments and this log state plainly: `checkStock`
+then `deductStock` are two separate local React state writes, not one
+database transaction. In this Phase 4 demo, each browser has its own
+local inventory copy, so it can't actually oversell across users — but
+that's a property of the demo's isolation, not of the code being
+concurrency-safe. **Phase 5 must perform check-and-deduct as a single
+atomic server-side database transaction** to prevent overselling when
+real concurrent customers target the same final units. The
+`checkStock`/`deductStock`/`restoreStock` function signatures are designed
+to stay stable across that change — only their implementation moves
+server-side.
+
+### 7. Family Shopping redesign
+`lib/family/family-context.tsx`: `relation` (closed enum: Self/Partner/
+Child/Other) and `sizeNote` (single free-text field) replaced with
+`relationship: string` (open-ended, powered by a `<datalist>` of the
+requested suggestions — Husband, Wife, Father, Mother, Sibling terms,
+Grandparent terms, Uncle/Aunt/Cousin/Nephew/Niece, Friend, Fiancé(e),
+Colleague, Other — so a relationship not on the list is never blocked),
+`ageGroup`, `genderPresentation`, `clothingSizes: { tops, bottoms, dresses,
+outerwear, traditionalWear, other }`, `shoeSize`, `stylePreferences[]`,
+`colorPreferences[]`. Existing Phase 3 profiles migrate automatically
+(`migrateMember()` maps `relation`→`relationship`, `sizeNote`→
+`clothingSizes.other`) so a reviewer's saved profiles don't silently
+vanish.
+
+### 8–13. Complete the Look / Outfit Builder (mannequin-based)
+**Constraint flagged up front and honored throughout:** this project has
+no garment photography (a deliberate Phase 1 decision — gradient swatches
+stand in for photos). A photographically-accurate mannequin wearing real
+garments is not possible without real photography assets, and the brief
+explicitly says not to fake this. `components/shop/Mannequin.tsx` is
+therefore a stylized, abstract SVG dress-form silhouette — no head, face,
+skin tone, or body representation — with per-slot regions (dress, top,
+bottom, outerwear, shoes, bag, accessory) filled with the *selected
+product's actual swatch colour*. This is genuinely reflective of the
+selection (not decorative), explicitly labeled in its own `aria-label` and
+an on-screen caption as "a stylized preview... not garment-accurate
+photography," and its `outfit` prop shape is designed to stay stable if a
+real photographic/AI try-on is added in a future phase — only the internal
+rendering would change, not the interface other components use.
+
+`lib/data/products.ts` gained `getOutfitSlot(product)` — derives a slot
+(top/bottom/dress/outerwear/shoes/bag/accessory) from `subcategory` plus a
+couple of name-based overrides (e.g. "Clutch" → bag), since the catalogue
+has no dedicated slot field. Flagged as a Phase 5 candidate for a real
+first-class field instead of derivation.
+
+**Outfit Builder** (`app/account/outfit-builder/page.tsx`): per-slot
+product selection feeding the shared mannequin live, "Recommended" badges
+on items matching the customer's Style Quiz colour/style preferences, save
+outfit, add the complete look to bag (auto-selecting each item's first
+in-stock variant), and per-item wishlist toggling.
+
+**Complete the Look** (`app/complete-the-look/page.tsx` +
+`lib/data/occasions.ts`): a full structured occasion catalogue matching the
+brief's category list (Everyday, Work & Professional, Weddings &
+Celebrations, Religious, Travel & Vacation, School, Sports & Active,
+Special Nights, Formal, Cultural & Traditional — every occasion name from
+the brief is present) drives real category/occasion filtering. A separate,
+smaller `CURATED_LOOKS` map provides hand-curated mannequin looks for the
+subset of occasions the current ~12-product mock catalogue can actually
+support (Wedding Guest, Church/Sunday Service, Office/Business Casual,
+Everyday Wear/Weekend). Occasions without a curated look show an honest
+empty state pointing to Outfit Builder rather than a fabricated look —
+the occasion catalogue is intentionally broader than what's curated today,
+by design, and adding a curated look later is a pure data change.
+
+### 14–15. Style Quiz redesign
+`app/account/style-quiz/page.tsx` replaced 3 questions with 8, all in the
+brief's plain-language style ("What colours do you like wearing?", "Do
+you prefer loose or fitted clothes?", "What do you usually wear?", "Which
+style do you like?", "Which shoes do you like?", "Which accessories do
+you like?", "What are you dressing for most often?", "How formal do you
+like to dress, generally?"). `lib/style/style-context.tsx` now stores
+structured `StylePreferences` (colours, fit, clothing types, styles,
+shoes, accessories, occasions, formality) as the source of truth — a
+`styleLabel` is still derived for a friendly summary, but it's
+display-only now, not read back as data by anything (this is the "quiz
+must have a real purpose" requirement: Outfit Builder's recommendation
+logic reads `preferences` directly).
+
+### 16. Site Announcements
+New `lib/announcements/announcement-context.tsx` (title, message, type,
+start/end date, active flag, optional CTA), `app/admin/announcements/page.tsx`
+(Super/Business only) for CRUD, and `components/layout/AnnouncementBanner.tsx`
+— a dismissible banner mounted above the Navbar in `app/layout.tsx`, shown
+only when an announcement is active and within its date window.
+
+**Architecture note, stated in the admin UI itself and here:** this is
+local-to-this-browser only. An admin "publishing" an announcement makes it
+visible in *that admin's own browser's* storefront view, not to other
+visitors — there is no shared backend/database in Phase 4. The admin page
+carries an explicit on-screen notice saying so. `getActiveAnnouncement()`'s
+signature is designed to stay identical when Phase 5 replaces its
+implementation with a fetch to a real shared announcements API — the
+banner component never needs to change.
+
+### Assumptions made (flagging per instruction to pause on ambiguity)
+- **Announcement management restricted to Super/Business Admin** — not
+  explicitly specified in the RBAC section of the brief; treated as a
+  marketing-adjacent capability similar to Promotions, which already
+  excludes Staff.
+- **Family relationship list is a suggestion, not a constraint** — the
+  brief asked for a "flexible structure," so `relationship` is a plain
+  string with a `<datalist>` of the requested options rather than a closed
+  type; any value is accepted.
+- **Outfit Builder's "add complete look to bag" auto-selects each item's
+  first in-stock variant** rather than prompting for colour/size per item
+  — chosen for flow simplicity; flagged in case explicit per-item variant
+  selection is wanted instead.
+- **Curated Complete the Look coverage is partial** (4 of ~90 occasions) —
+  a direct, honest consequence of the ~12-product mock catalogue, not a
+  shortcut; the architecture supports unlimited curated looks as a
+  data-only addition once more products exist.
+
+### TypeScript strict-mode audit (continued practice)
+Proactively caught and fixed a real bug before it could surface as a build
+failure: `Object.fromEntries(array.map(item => [a, b]))` without an
+explicit tuple return type on the map callback infers `(A|B)[]` (a plain
+array), not a `[A, B]` tuple, which `Object.fromEntries` requires — found
+in both `app/complete-the-look/page.tsx` and
+`app/account/outfit-builder/page.tsx`'s mannequin-outfit construction and
+fixed by explicitly typing the callback's return as `[string, string]` in
+both places. Also re-swept the full diff for the `noUncheckedIndexedAccess`
+pattern from the two earlier real build failures (array indexing,
+`.find()` without a fallback) — no new instances found; existing guarded
+patterns (`?? fallback`, `if (!x) return`) were reused throughout.
+
+### Not yet built / deferred to Phase 5
+- Real atomic server-side stock deduction (see synchronization section above)
+- Cross-visitor announcement delivery
+- Real customer accounts, real multi-admin authentication
+- Photographic or AI virtual try-on
+- Curated looks for the full occasion catalogue
+- Admin's product catalogue still not synced to server-rendered storefront
+  pages (a Phase 4-original limitation, now more consequential given
+  richer variant data — same root cause as before: some storefront pages
+  render server-side and can't read browser-local admin state)
+
+### What Phase 5 must preserve
+- The `Product.variants` shape (`{ color, size, stock }`) as the single
+  source of truth — every surface now depends on it.
+- `InventoryProvider`'s `checkStock`/`deductStock`/`restoreStock` function
+  signatures — only their implementation should move server-side/atomic.
+- `Mannequin`'s `outfit: Partial<Record<OutfitSlot, string>>` prop shape —
+  a future real try-on feature should extend this, not replace it.
+- `Announcement`'s data shape and `getActiveAnnouncement()`'s signature.
+
+### Build verification
+Could not execute `npm run build` in this sandbox (no network access,
+confirmed by a blocked npm registry call). In lieu of that, performed: a
+full grep sweep for stale references to every removed field/context
+(clean), a manual review of every new/changed file's type signatures
+against the rest of the codebase, and the `Object.fromEntries` fix
+documented above, found via the same manual process. Please run the build
+locally and report back — the last three rounds of real build failures
+were all found and fixed this way, so this is a proven (if imperfect)
+substitute for this sandbox's lack of network access.
+
+---
+
+## Phase 4 — Build fix (post-delivery, pre-approval)
+
+**Issue:** Vercel's `next build` failed at type-checking with a real error
+in `components/admin/AdminShell.tsx:32`:
+
+```
+Type 'LucideIcon' is not assignable to type '... size?: number ...'
+```
+
+**Root cause:** `NavItem.icon` was hand-typed as
+`ComponentType<{ size?: number; "aria-hidden"?: ... }>` — a narrower type
+than Lucide's actual `LucideIcon` type, which accepts `size?: string |
+number`. Assigning `LayoutDashboard`, `Boxes`, etc. (all `LucideIcon`) to
+that narrower prop type failed structurally.
+
+**Fix:** `components/admin/AdminShell.tsx` — imported `LucideIcon` from
+`lucide-react` and retyped `NavItem.icon: LucideIcon` in place of the
+hand-rolled `ComponentType<...>`. No other line in the file changed: both
+render usages (`<Icon size={14} aria-hidden="true" />` and `<Icon
+size={16} aria-hidden="true" />`) were already fully compatible with
+`LucideIcon` and needed no adjustment. RBAC logic, the `NAV` array's
+routes/roles/labels, and all other Phase 4 functionality are untouched.
+
+**Consistency check:** searched the rest of the codebase for the same
+hand-typed-icon pattern. `components/account/DashboardShell.tsx` (Phase 3)
+has no explicit `NavItem` type at all — it lets TypeScript infer the shape
+directly from the Lucide imports, which already resolves to `LucideIcon`
+correctly. `AdminShell.tsx` was the only file with an overly-narrow
+explicit type; it now matches the same correct, already-proven pattern.
+
+**Verification:** could not run `npm run build` directly in this sandbox
+(no network access, confirmed again by a blocked npm registry call), so
+this is a manual structural-typing fix, cross-checked against Lucide's
+actual exported `LucideIcon` type shape and against the one other file in
+the project with the same navigation-icon pattern. Please run the build
+and confirm.
+
+---
+
 ## Phase 4 — Admin Portal
 
 **Status:** Complete, pending review.

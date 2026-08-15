@@ -2,9 +2,107 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
+## v0.4.1 — Admin Portal Refinement & Phase 5 Preparation (Phase 4)
+
+**Status:** Awaiting your approval. This is a refinement of the already-
+approved-architecture v0.4 Admin Portal — not a new phase — implementing
+the detailed Phase 4 refinement brief plus the order→inventory→storefront
+synchronization requirement.
+
+### Added
+- **`lib/inventory/inventory-context.tsx`** — new root-level `InventoryProvider`,
+  the single source of truth for product/variant/stock data across the
+  entire app (storefront and admin). Replaces the admin-only
+  `AdminProductsProvider` (deleted).
+- **Product variant architecture** (`lib/data/products.ts`): `Product` now
+  carries `variants: { color, size, stock }[]` instead of separate flat
+  `colors[]`/`sizes[]` arrays, plus `status`, `subcategory`, `salePrice`.
+  Helper functions (`getColors`, `getSizes`, `getVariant`, `getTotalStock`,
+  `isProductInStock`) derive everything else from `variants`.
+- **Order → Inventory → Storefront sync**: checkout validates every cart
+  line against live variant stock before allowing an order (`checkStock`),
+  then deducts it (`deductStock`); admin cancelling an order restores it
+  (`restoreStock`) via a new `Cancelled` order status. Cart quantity
+  steppers are clamped to live stock. PDP shows real per-variant
+  availability — a fully-sold-out variant shows unavailable, but the
+  product stays visible if any other variant has stock.
+- **Admin Products** (`app/admin/products/page.tsx` + new
+  `app/admin/products/[id]/page.tsx`): full metadata editing (description,
+  subcategory, sale price, status) plus a dedicated variant management
+  view — add/remove colours and sizes, per-variant stock editing grouped
+  by colour.
+- **Admin Inventory** rebuilt at variant granularity — every colour/size
+  row for every product, not one number per product.
+- **Role-aware Admin Dashboard** — Super/Business/Staff each see a
+  genuinely different metric set (see IMPLEMENTATION_LOG.md for the exact
+  breakdown), not one dashboard with items hidden.
+- **Family Shopping redesign**: open-ended relationship field (datalist,
+  not a closed enum), age group, per-category clothing sizes (tops,
+  bottoms, dresses, outerwear, traditional wear), shoe size, style and
+  colour preference tags.
+- **Style Quiz redesign**: 8 plain-language multiple-choice questions
+  producing structured preference data (`lib/style/style-context.tsx`'s
+  new `StylePreferences`) instead of only a personality label — genuinely
+  read by Outfit Builder for recommendations.
+- **`components/shop/Mannequin.tsx`** — a stylized, abstract SVG dress-form
+  mannequin (explicitly not photography, not a body/face representation)
+  shared by Outfit Builder and Complete the Look, filling per-slot regions
+  with the selected product's colour.
+- **Outfit Builder rebuilt** around the mannequin: per-slot product
+  selection, live visual composition, Style Quiz-driven "Recommended"
+  badges, save outfit / add complete look to bag / per-item wishlist.
+- **Complete the Look rebuilt** around occasion selection: full structured
+  occasion catalogue (`lib/data/occasions.ts`, matching the requested
+  category list), mannequin visualization of the curated look for
+  occasions that have one, an honest empty state pointing to Outfit
+  Builder for occasions that don't yet.
+- **Site Announcements**: `lib/announcements/announcement-context.tsx` +
+  admin CRUD page (`/admin/announcements`) + dismissible storefront banner
+  (`components/layout/AnnouncementBanner.tsx`). Explicitly documented and
+  UI-labeled as local-to-this-browser only — not yet visible to other
+  visitors (see architecture note in IMPLEMENTATION_LOG.md).
+
+### Changed
+- `lib/cart/cart-context.tsx` — `CartLine` gained `color` (cart lines now
+  key on productId+color+size, matching a real variant). Existing carts
+  migrate automatically.
+- `lib/orders/order-context.tsx` — `OrderItem` gained `color`; `OrderStatus`
+  gained `"Cancelled"`.
+- `lib/family/family-context.tsx` — full data model redesign; existing
+  Phase 3 profiles migrate automatically on load.
+- `lib/style/style-context.tsx` — `styleProfile: string` replaced by
+  structured `preferences: StylePreferences` (a `styleLabel` is still
+  derived for display).
+- `.eslintrc.json` — added `varsIgnorePattern: "^_"` alongside the existing
+  `argsIgnorePattern`, for an intentionally-unused destructured variable
+  introduced in the Family Shopping edit form.
+
+### Not changed
+Branding, design tokens, `Navbar`/`Footer` structure, the customer
+dashboard's other pages (Profile, Addresses, Loyalty, Notifications,
+AI Stylist), and the RBAC nav matrix itself (Super/Business/Staff section
+visibility) are all unchanged from the approved v0.4.
+
+### Deferred to Phase 5 (see IMPLEMENTATION_LOG.md for full detail)
+Real atomic server-side stock deduction; cross-visitor announcement
+delivery; real customer accounts/auth; photographic or AI virtual
+try-on; curated looks for the full occasion list (data architecture
+supports it, only a subset are hand-curated against the current small
+catalogue).
+
+---
+
 ## v0.4 — Admin Portal (Phase 4)
 
 **Status:** Awaiting your approval.
+
+### Patch — Vercel type-check build fix
+- Fixed `components/admin/AdminShell.tsx`: `NavItem.icon` was hand-typed
+  narrower than Lucide's actual `LucideIcon` type (`size?: number` instead
+  of `size?: string | number`), which failed `next build`'s type-check
+  when assigning real Lucide icon components to it. Retyped as
+  `icon: LucideIcon` (imported from `lucide-react`). No render logic, RBAC
+  logic, routes, or roles changed.
 
 ### Added
 - `/admin` Admin Portal with a shared `AdminShell` (RBAC-filtered sidebar

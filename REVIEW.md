@@ -3,7 +3,7 @@
 **Phase 1 (Foundation):** ✅ Approved — live at https://omv-iota.vercel.app/
 **Phase 2 (Storefront):** ✅ Approved
 **Phase 3 (Customer Dashboard):** ✅ Approved
-**Phase 4 (Admin Portal):** Awaiting your approval
+**Phase 4 (Admin Portal):** Deployed & manually tested — refinement below awaiting your approval
 
 This document walks through every screen built so far: what it's for, the
 UX decisions behind it, which reusable components it's built from, and how it
@@ -651,6 +651,176 @@ larger, deliberate architecture change rather than an incremental one.
   Staff: Dashboard/Inventory/Customers/Orders/Notifications) matches your
   expectations, or flag any section that should move between roles.
 - Anything missing from Phase 4's scope before Phase 5 begins.
+
+---
+
+# Phase 4 Refinement — RBAC Dashboards, Product Variants & Inventory Sync,
+# Family Shopping, Mannequin-Based Styling, Announcements
+
+This section covers the detailed refinement pass on top of the Admin
+Portal above: role-aware dashboards, a full product variant/inventory
+architecture with real order synchronization, a richer Family Shopping
+data model, a mannequin-based Outfit Builder and Complete the Look, an
+expanded Style Quiz, and a new site announcements system. Full reasoning
+for every decision below is in `IMPLEMENTATION_LOG.md`.
+
+## 29. Role-Aware Admin Dashboard
+
+### Staff Admin view
+![Dashboard staff dark](preview/refine-dashboard-staff-dark.png)
+
+### Super Admin view (with Recent Admin Activity)
+![Dashboard super dark](preview/refine-dashboard-super-dark.png)
+
+**UX decisions:** Staff sees only what they can act on — Total Orders,
+Orders Needing Attention, Low Stock Variants, Customers — with an explicit
+note that Revenue/Products/Pending Reviews are intentionally absent, not
+missing by accident. Super/Business share the fuller business picture;
+only Super additionally sees a Recent Admin Activity feed, keeping audit
+information out of Business Admin's view as specified.
+
+**Components used:** `Card`, role branching on `currentAdmin.role` inside
+`app/admin/page.tsx` — one page, genuinely different content per role.
+
+## 30. Product Detail / Edit with Variant Stock
+
+### Desktop
+![Product detail dark](preview/refine-product-detail-dark.png)
+
+**UX decisions:** the variant grid is grouped by colour with a size/stock
+row underneath each — matching the exact format requested (colour →
+size → stock). Colours below the low-stock threshold show gold, zero
+shows red, so a scan of the grid immediately surfaces what needs
+attention. Adding a colour or size regenerates the matrix with new
+variants at zero stock rather than guessing a starting quantity.
+
+**Components used:** `Card`, `Input`, `useInventory()`'s
+`updateVariants`/`updateVariantStock`.
+
+## 31. Product Detail Page — Colour + Size Variant Selection
+
+### Desktop
+![PDP variant dark](preview/refine-pdp-variant-dark.png)
+
+**UX decisions:** colour is now genuinely selectable (previously static
+text) alongside size. Size M is shown struck through and disabled for the
+selected colour because that specific variant is at zero stock — every
+other size stays selectable, which is the literal "product stays visible,
+but that variant can't be selected" requirement, not a simulation of it.
+"Only 5 left" urgency messaging appears only when genuinely low, read
+live from the shared inventory.
+
+**Components used:** `ProductDetail`, `useInventory()`.
+
+## 32. Complete the Look — Occasion-Based with Mannequin
+
+### Desktop
+![Complete the Look dark](preview/refine-complete-the-look-dark.png)
+
+### Mobile
+![Complete the Look mobile](preview/mobile-refine-complete-the-look.png)
+
+**UX decisions:** category and occasion pills drive a full structured
+occasion catalogue (every occasion name from the requirement list is
+present as real data, not just the ones shown here). The mannequin is
+deliberately abstract — a dress-form silhouette, no face or body
+representation — with each garment slot filled in the actual product's
+colour, captioned plainly as a stylized preview rather than photography.
+Occasions without a curated look yet (most of the catalogue, honestly,
+given the ~12-product mock dataset) show an empty state pointing to
+Outfit Builder instead of a fabricated look.
+
+**Components used:** `Mannequin` (new, shared with Outfit Builder), `Card`,
+`OCCASION_CATALOGUE`/`CURATED_LOOKS` data.
+
+## 33. Outfit Builder — Mannequin-Based
+
+### Desktop
+![Outfit builder dark](preview/refine-outfit-builder-dark.png)
+
+### Mobile
+![Outfit builder mobile](preview/mobile-refine-outfit-builder.png)
+
+**UX decisions:** per-slot selection (Top, Bottom, Dress, Outerwear,
+Shoes, Bag, Accessory) updates the same shared mannequin live. Items
+matching the customer's Style Quiz colour/style preferences are marked
+"Recommended" — genuine personalization, not decoration, since it reads
+directly from `useStyle().preferences`. "Add Look" auto-selects each
+piece's first in-stock variant; per-item wishlist toggling is available
+inline.
+
+**Components used:** `Mannequin`, `Card`, `Button`, `useStyle()`,
+`useCart()`, `useWishlist()`, `useInventory()`.
+
+## 34. Family Shopping — Redesigned Profile Model
+
+### Desktop
+![Family shopping dark](preview/refine-family-shopping-dark.png)
+
+**UX decisions:** relationship is now a free-text field backed by a
+`<datalist>` of suggested options (Husband, Wife, Father, Mother, Son,
+Daughter, and the rest of the requested list) rather than a closed
+4-option enum — any relationship not on the list is still accepted, never
+blocked. Clothing sizes are split by category (tops, bottoms, dresses,
+outerwear, traditional wear) instead of one free-text field, plus a
+dedicated shoe size and tag-style style/colour preference selectors.
+Existing Phase 3 profiles migrate automatically rather than disappearing.
+
+**Components used:** `Input`, `Card`, native `<datalist>`, `useFamily()`.
+
+## 35. Style Quiz — Redesigned, Structured Output
+
+### Desktop
+![Style quiz dark](preview/refine-style-quiz-dark.png)
+
+**UX decisions:** grew from 3 questions to 8, all in the requested
+plain-language style ("What colours do you like wearing?" rather than any
+fashion jargon). Answers are now stored as structured preference data
+(colours, fit, clothing types, styles, shoes, accessories, occasions,
+formality) — genuinely read by Outfit Builder's recommendation logic, not
+just producing a personality label to display and forget.
+
+**Components used:** multi-select pill groups, single-select list,
+`useStyle()`'s new `StylePreferences`.
+
+## 36. Site Announcements
+
+**Purpose:** admin-managed storefront banner (see the purple bar at the
+top of the Complete the Look preview above — "New arrivals — Our new
+seasonal collection is now available").
+
+**UX decisions:** dismissible per-browser, respects an active flag and a
+start/end date window, optional CTA. The admin management page carries an
+explicit, unmissable notice that this is local-to-this-browser only —
+publishing an announcement does not yet make it visible to other
+visitors, since there's no shared backend in Phase 4. The data shape and
+`getActiveAnnouncement()` function are designed so Phase 5 only needs to
+change the implementation (fetch from a real API) without touching the
+banner component at all.
+
+**Components used:** `AnnouncementBanner` (new, mounted above the Navbar
+site-wide), `app/admin/announcements/page.tsx`, `useAnnouncements()`.
+
+---
+
+## What still needs your review (Phase 4 Refinement)
+
+- **Inventory sync is client-side only, explicitly not concurrency-safe**
+  — `IMPLEMENTATION_LOG.md` states plainly that Phase 5 must make
+  check-and-deduct one atomic server-side transaction. Confirm this
+  framing is clear enough for handoff.
+- **Curated Complete the Look coverage is partial** (4 of ~90 occasions)
+  — a direct consequence of the small mock catalogue, not a shortcut.
+  Confirm you're comfortable with the honest "not curated yet" state for
+  the rest until more products exist.
+- **Mannequin is intentionally abstract**, not photographic — confirm this
+  reads as the right interim solution rather than something that needs to
+  look more "real" even at this stage.
+- **Announcement management restricted to Super/Business Admin** — not
+  explicitly specified in the brief; flagged as an assumption.
+- **Outfit Builder's "Add Look" auto-selects a variant** rather than
+  prompting per item — confirm this flow is acceptable.
+- Anything missing from this refinement before Phase 5 begins.
 
 ---
 
