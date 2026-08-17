@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  OMV Theme Tokens
+  ----------------
+  Dark theme = primary brand experience (Brand Book §13, Design System).
+  Light theme = derived from the same palette, never introducing new hues.
+  Values are HSL triplets (no `hsl()` wrapper) so Tailwind can apply alpha.
+
+  Dark   background/surface/surface-elevated = Midnight Emerald / Forest
+         Emerald / Deep Moss, exactly as specified.
+  Light  background/surface/surface-elevated are warm, muted parchment
+         tones pulled toward the emerald hue family (never neutral white,
+         never bright green) so the palette reads as one brand in both
+         modes.
+*/
+
+:root,
+[data-theme="dark"] {
+  --background: 159 56% 7%; /* #081C15 Midnight Emerald */
+  --surface: 159 51% 14%; /* #12372A Forest Emerald */
+  --surface-elevated: 155 43% 18%; /* #1B4332 Deep Moss */
+  --foreground: 0 0% 96%; /* #F4F4F4 Ivory White */
+  --foreground-muted: 0 0% 81%; /* #CFCFCF Soft Silver */
+
+  --primary: 153 40% 30%; /* mid emerald, brightened for interactive states */
+  --primary-foreground: 0 0% 96%;
+
+  --accent: 262 52% 34%; /* #4C2A85 Royal Purple */
+  --accent-foreground: 0 0% 96%;
+
+  --gold: 46 67% 47%; /* #C9A227 Heritage Gold */
+  --gold-foreground: 159 56% 7%;
+
+  --border: 156 28% 23%;
+  --ring: 46 67% 47%;
+}
+
+[data-theme="light"] {
+  --background: 48 5% 93%; /* Alabaster Sage — warm, muted, never bright white */
+  --surface: 44 7% 90%; /* Soft Linen */
+  --surface-elevated: 45 3% 95%;
+  --foreground: 154 39% 12%; /* deep emerald ink, not black */
+  --foreground-muted: 148 9% 32%;
+
+  --primary: 159 51% 14%; /* Forest Emerald — deep, never bright green */
+  --primary-foreground: 0 0% 96%;
+
+  --accent: 262 52% 34%;
+  --accent-foreground: 0 0% 96%;
+
+  --gold: 43 70% 39%; /* deepened for AA contrast on light surfaces */
+  --gold-foreground: 0 0% 96%;
+
+  --border: 43 15% 82%;
+  --ring: 159 51% 14%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 250ms ease, color 250ms ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+::selection {
+  background-color: hsl(var(--gold) / 0.35);
+  color: hsl(var(--foreground));
+}
+
+/* Accessibility: always show a visible, on-brand focus ring */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: hsl(var(--gold));
+  color: hsl(var(--gold-foreground));
+  padding: 12px 20px;
+  border-radius: 0 0 10px 0;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
