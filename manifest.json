@@ -1,0 +1,12 @@
+{
+  "name": "Overcomers Multipurpose Ventures",
+  "short_name": "OMV",
+  "description": "Every Outfit. Every Occasion. Every Family.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#081C15",
+  "theme_color": "#081C15",
+  "icons": [
+    { "src": "/brand/app-icon.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

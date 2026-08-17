@@ -2,6 +2,53 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
+## v0.4.2 — Actionable Notifications & Real Mannequin Composition (Phase 4)
+
+**Status:** Awaiting your approval. Fixes two specific gaps found in
+manual testing of v0.4.1: notifications didn't do anything when clicked,
+and the mannequin was a generic silhouette with unrelated colour blocks
+instead of a genuine garment composition.
+
+### Added
+- `AdminNotification.href` — every notification now has (or explicitly
+  lacks) a real destination. `useAdminNotifications().addNotification()`
+  lets any admin action push one.
+- New notification triggers, each deep-linked: order placed → that order
+  in Admin Orders (`/admin/orders#<id>`); a variant crossing into low
+  stock → Admin Inventory; a product save → that product's detail page;
+  an announcement published → Admin Announcements.
+- `Mannequin` rebuilt with 8 distinct garment silhouettes (dress, top/
+  shirt with sleeves, layered jacket with lapel, split-leg trousers,
+  flared skirt, floor-length traditional wear, wrapped headwear, handled
+  bag) instead of one generic shape recoloured per slot.
+- `OutfitSlot` expanded from 7 to 11 categories
+  (top/shirt/dress/jacket/trousers/skirt/traditionalWear/shoes/bag/
+  headwear/accessory) to support the above.
+- Outfit Builder: size selection is now part of the per-slot outfit
+  state (auto-picked on selection, changeable via size chips, shown in
+  the summary, and preferred when adding the look to the bag).
+- `preview/mannequin-combo-test.png` — a direct visual verification of 7
+  different outfit combinations, confirming genuinely different
+  silhouettes per combination (not just recoloring).
+
+### Changed
+- `app/admin/notifications/page.tsx` — rows are now `Link`/`button`
+  elements, not static text; existing unread badge/count behavior
+  unchanged.
+- `app/admin/orders/page.tsx` — each order now has a DOM anchor id for
+  notification deep-linking.
+- `lib/data/occasions.ts`'s `CuratedLook` fields renamed to match the
+  expanded slot set (`headwear` instead of folding headwear into
+  `accessory`, `trousers`/`shirt`/`jacket` instead of `bottom`/`top`/
+  `outerwear`).
+
+### Not changed
+Phase 1–3 functionality, RBAC structure, branding, and every other Phase
+4 refinement (product variants, inventory sync, Family Shopping, Style
+Quiz, Announcements) — untouched by this round.
+
+---
+
 ## v0.4.1 — Admin Portal Refinement & Phase 5 Preparation (Phase 4)
 
 **Status:** Awaiting your approval. This is a refinement of the already-

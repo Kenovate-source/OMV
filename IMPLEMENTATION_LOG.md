@@ -6,6 +6,117 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 4 — Refinement Round 2: Actionable Notifications & Real Mannequin Composition
+
+**Status:** Complete, pending review. Addresses two specific gaps found in
+manual testing of the Round 1 refinement: notifications were static text,
+and the "mannequin" was a generic silhouette with unrelated colour blocks
+rather than a genuine per-garment visual composition.
+
+### 1. Admin Notifications made actionable
+`AdminNotification` (`lib/admin/admin-notifications-context.tsx`) gained
+an optional `href`. Every notification in `app/admin/notifications/page.tsx`
+is now a real interactive element — a `Link` when a destination exists,
+a `button` when it doesn't — and clicking it marks it read either way (the
+existing unread badge/count logic in `AdminShell` is untouched). Wired
+destinations, matching every example from the request:
+- "New order received" → `/admin/orders#<orderId>`, and Admin Orders now
+  sets `id={o.id}` on each order's list item so the browser scrolls to it.
+- "Weekly sales report is ready to review" → `/admin/reports`
+- "Product reviews are awaiting moderation" → `/admin/reviews`
+- "Low stock alert" → `/admin/inventory`, genuinely generated the moment a
+  variant crosses *into* the low-stock band in `app/admin/inventory/page.tsx`
+  (not re-fired on every subsequent adjustment while it stays low)
+- "Product updated" → `/admin/products/<id>`, fired from the product
+  detail page's save handler
+- "Announcement published" → `/admin/announcements`, fired from the
+  announcement creation handler
+
+A new `addNotification(message, href?)` was added to the context so any
+admin surface can push a real notification — this is what the four new
+trigger points above call, rather than each reinventing notification
+state.
+
+### 2. Mannequin rebuilt with real per-garment silhouettes
+The previous `Mannequin` component swapped colour on one generic humanoid
+block per slot — visually, a dress and a jacket looked like the same
+shape in a different colour, which is exactly what the request flagged as
+insufficient. `components/shop/Mannequin.tsx` was rebuilt so each garment
+category renders its own distinct shape:
+- **Dress**: fitted bodice + separately-flared skirt (waist nip visible)
+- **Top/Shirt**: torso block + two angled sleeve shapes
+- **Jacket**: a wider, semi-transparent layer over whatever's underneath,
+  with its own sleeves and a lapel notch (V-neck opening) so a jacket
+  visibly *layers on top* rather than replacing what's under it
+- **Trousers**: two separate leg shapes split from the waist
+- **Skirt**: a single flared shape, shorter than the dress skirt
+- **Traditional wear**: a wide, floor-length flowing shape, replacing
+  top+bottom entirely (mutually exclusive, same as dress)
+- **Headwear**: wraps the stand's head knob with a rounded shape plus a
+  small knotted tail
+- **Bag**: a trapezoid body with a handle arc, positioned beside the torso
+- **Shoes**: at the base, positioned per foot
+- **Accessory**: a small neckline badge
+
+`OutfitSlot` (`lib/data/products.ts`) was expanded from 7 to 11 categories
+to support this (`top`/`shirt`/`dress`/`jacket`/`trousers`/`skirt`/
+`traditionalWear`/`shoes`/`bag`/`headwear`/`accessory` — `skirt` and
+`traditionalWear` have no matching products in the current mock catalogue
+yet but exist so future products don't require another shape change).
+`getOutfitSlot()`, `CuratedLook` (`lib/data/occasions.ts`), and both
+Outfit Builder's and Complete the Look's slot handling were updated to
+match — all still generic over `OutfitSlot`, no hardcoded slot lists
+outside the type itself.
+
+**Verification performed, not just claimed:** built a standalone test
+page embedding the exact SVG path data from the new `Mannequin.tsx` for
+seven combinations spanning the requested test list (Wedding Guest,
+Office, Beach/Vacation, Birthday/Celebration, Sports/Active, Traditional/
+Cultural, and an Office+Jacket-layered variant), screenshot it, and
+visually confirmed each combination produces a genuinely different
+silhouette — not just a different colour on the same shape. This render
+is saved at `preview/mannequin-combo-test.png` for your own review. The
+real React component uses identical path data, so this is a faithful
+proxy for what renders in the app, not a separate mockup.
+
+### 3. Size carried through the selected outfit/variant state
+`app/account/outfit-builder/page.tsx` gained a `sizes` state
+(`Partial<Record<OutfitSlot, string>>`) alongside the existing per-slot
+product selection. Selecting a garment auto-picks its first available
+size (so a size is *always* part of the state the moment a garment is
+chosen); a size-chip row appears under the active tile to change it. The
+chosen size is shown in the summary sidebar next to each selected piece,
+and "Add Look to Bag" now prefers the exact colour+size combination
+chosen (falling back to any in-stock variant only if that precise
+combination isn't available). Explicitly not a resizing/fit-simulation
+feature — the mannequin's shapes don't change with size, matching "does
+NOT need to physically become larger/smaller... do not claim true virtual
+try-on."
+
+### Assumption flagged
+Saved outfits (`useStyle().saveOutfit`) still store only product ids, not
+the chosen size per piece — extending that would mean changing
+`SavedOutfit`'s shape and is a reasonable next increment, but the request's
+emphasis was on carrying size through to the *bag* selection specifically,
+which is done. Flagging in case per-piece size should also persist in
+saved outfits.
+
+### Regression check
+Re-swept `app/family-shopping/page.tsx`, `app/cart/page.tsx`,
+`app/checkout/page.tsx`, `app/admin/orders/page.tsx`, and every Phase 1–3
+route for any dependency on the old 7-slot `OutfitSlot` type or the old
+notification shape — none found; these areas were untouched by this round.
+
+### Build verification
+Same limitation as every round: no network access in this sandbox, so
+`npm run build` could not be executed directly. Performed a full grep
+sweep for stale references to the old slot names (`"bottom"`,
+`"outerwear"`) and confirmed the `Object.fromEntries` tuple-typing fix
+from the previous round is still intact in both files that construct a
+`MannequinOutfit`. Please run the build locally and report back.
+
+---
+
 ## Phase 4 — Refinement & Phase 5 Preparation
 
 **Status:** Complete, pending review. Implements the detailed Phase 4

@@ -803,6 +803,42 @@ site-wide), `app/admin/announcements/page.tsx`, `useAnnouncements()`.
 
 ---
 
+## 37. Admin Notifications — Now Actionable
+
+### Desktop
+![Notifications actionable dark](preview/refine2-notifications-dark.png)
+
+**UX decisions:** every row is a real interactive element (a link when it
+has a destination, a button when it doesn't) rather than static text.
+Clicking a "New order received" notification jumps straight to that order
+in Admin Orders; "Low stock alert" opens Inventory; "Product updated"
+opens that exact product's edit page. Opening a notification always marks
+it read — no separate "mark read" affordance needed anymore since the row
+itself does both. The existing unread dot and sidebar/tab-bar badge count
+are unchanged.
+
+**Components used:** `useAdminNotifications()` (gained `href` per
+notification and a generic `addNotification()` other admin actions call).
+
+## 38. Complete the Look — Real Garment Composition on the Mannequin
+
+### Desktop
+![Complete the Look real composition](preview/refine2-complete-the-look-dark.png)
+
+**UX decisions:** this replaces the earlier abstract-blocks version. The
+mannequin now visibly *wears* the selected dress (fitted bodice, flared
+skirt), *wears* the headwrap at the head, and *displays* the bag beside
+the torso — a real per-garment composition, not colour blocks standing in
+for unrelated shapes. Jackets, when selected, visibly layer over
+whatever's underneath rather than replacing it. See
+`preview/mannequin-combo-test.png` for a direct side-by-side of 7 outfit
+combinations confirming the shapes genuinely differ, not just the colours.
+
+**Components used:** `Mannequin` (rebuilt), now covering 11 garment
+categories instead of 7.
+
+---
+
 ## What still needs your review (Phase 4 Refinement)
 
 - **Inventory sync is client-side only, explicitly not concurrency-safe**
