@@ -284,22 +284,42 @@ export function isProductInStock(product: Product): boolean {
 // bag/accessory items) rather than inventing a second, possibly
 // conflicting classification system. Phase 5's real schema should add a
 // first-class `slot` field on Product instead of deriving it.
-export type OutfitSlot = "top" | "bottom" | "dress" | "outerwear" | "shoes" | "bag" | "accessory";
+// Broader garment-layer taxonomy so the mannequin can render a genuinely
+// different silhouette per category (per Phase 4 refinement round 2) —
+// previously "outerwear"/"bottom" were single buckets, which meant a
+// jacket and a top rendered as the same shape. "skirt" and
+// "traditionalWear" have no matching products in the current mock
+// catalogue yet, but exist so the mannequin and curated-look data don't
+// need another shape change when such products are added.
+export type OutfitSlot =
+  | "top"
+  | "shirt"
+  | "dress"
+  | "jacket"
+  | "trousers"
+  | "skirt"
+  | "traditionalWear"
+  | "shoes"
+  | "bag"
+  | "headwear"
+  | "accessory";
 
 export function getOutfitSlot(product: Product): OutfitSlot {
   const n = product.name.toLowerCase();
   if (n.includes("clutch") || n.includes("bag")) return "bag";
-  if (n.includes("belt") || n.includes("headwrap")) return "accessory";
+  if (n.includes("headwrap")) return "headwear";
+  if (n.includes("belt")) return "accessory";
   switch (product.subcategory) {
     case "Dresses":
       return "dress";
-    case "Tops":
     case "Shirts":
+      return "shirt";
+    case "Tops":
       return "top";
     case "Bottoms":
-      return "bottom";
+      return "trousers";
     case "Outerwear":
-      return "outerwear";
+      return "jacket";
     case "Everyday":
       return "top";
     default:
@@ -309,10 +329,14 @@ export function getOutfitSlot(product: Product): OutfitSlot {
 
 export const SLOT_LABELS: Record<OutfitSlot, string> = {
   top: "Top",
-  bottom: "Bottom",
+  shirt: "Shirt",
   dress: "Dress",
-  outerwear: "Outerwear",
+  jacket: "Jacket",
+  trousers: "Trousers",
+  skirt: "Skirt",
+  traditionalWear: "Traditional Wear",
   shoes: "Shoes",
   bag: "Bag",
+  headwear: "Headwear",
   accessory: "Accessory",
 };

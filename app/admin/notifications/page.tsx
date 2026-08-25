@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import Link from "next/link";
+import { Bell, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useAdminNotifications } from "@/lib/admin/admin-notifications-context";
 
@@ -14,7 +15,9 @@ export default function AdminNotificationsPage() {
         <div>
           <h1 className="font-serif text-3xl text-foreground">Notifications</h1>
           <p className="mt-1 text-sm text-foreground-muted">
-            System alerts, including live updates when new orders come in.
+            Tap a notification to open what it&apos;s about — orders,
+            reports, reviews, inventory, products and announcements all
+            link through. Opening one marks it read.
           </p>
         </div>
       </div>
@@ -25,27 +28,46 @@ export default function AdminNotificationsPage() {
         </p>
       ) : (
         <ul className="flex flex-col divide-y divide-border rounded-card border border-border bg-surface-elevated">
-          {notifications.map((n) => (
-            <li key={n.id} className="flex items-center justify-between gap-4 p-5">
-              <div>
-                <p className={cn("text-sm", n.read ? "text-foreground-muted" : "text-foreground")}>
-                  {n.message}
-                </p>
-                <p className="mt-1 text-xs text-foreground-muted">
-                  {new Date(n.timestamp).toLocaleString()}
-                </p>
-              </div>
-              {!n.read && (
-                <button
-                  type="button"
-                  onClick={() => markRead(n.id)}
-                  className="shrink-0 rounded-full border border-border px-3 py-1 text-xs text-foreground-muted hover:border-gold hover:text-gold"
-                >
-                  Mark read
-                </button>
-              )}
-            </li>
-          ))}
+          {notifications.map((n) => {
+            const content = (
+              <>
+                <div className="flex-1 text-left">
+                  <p className={cn("text-sm", n.read ? "text-foreground-muted" : "text-foreground")}>
+                    {n.message}
+                  </p>
+                  <p className="mt-1 text-xs text-foreground-muted">
+                    {new Date(n.timestamp).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  {!n.read && <span className="h-2 w-2 rounded-full bg-gold" aria-hidden="true" />}
+                  {n.href && <ChevronRight size={16} className="text-foreground-muted" aria-hidden="true" />}
+                </div>
+              </>
+            );
+
+            return (
+              <li key={n.id}>
+                {n.href ? (
+                  <Link
+                    href={n.href}
+                    onClick={() => markRead(n.id)}
+                    className="flex items-center gap-4 p-5 transition-colors hover:bg-surface"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => markRead(n.id)}
+                    className="flex w-full items-center gap-4 p-5 text-left transition-colors hover:bg-surface"
+                  >
+                    {content}
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

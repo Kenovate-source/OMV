@@ -7,6 +7,7 @@ import { cn } from "@/lib/cn";
 import { useInventory } from "@/lib/inventory/inventory-context";
 import { useAdminAudit } from "@/lib/admin/admin-audit-context";
 import { useAdminAuth } from "@/lib/admin/admin-auth-context";
+import { useAdminNotifications } from "@/lib/admin/admin-notifications-context";
 import { formatNaira } from "@/lib/data/products";
 
 const LOW_STOCK_THRESHOLD = 5;
@@ -15,6 +16,7 @@ export default function InventoryPage() {
   const { products, updateVariantStock } = useInventory();
   const { logAction } = useAdminAudit();
   const { currentAdmin } = useAdminAuth();
+  const { addNotification } = useAdminNotifications();
   const [query, setQuery] = useState("");
 
   function adjustStock(
@@ -27,6 +29,16 @@ export default function InventoryPage() {
   ) {
     const next = Math.max(0, current + delta);
     updateVariantStock(productId, color, size, next);
+    // Fires once, right as a variant crosses INTO the low-stock band —
+    // not on every click while it stays there — so this mirrors "Low
+    // stock alert" as a real, actionable notification rather than a
+    // seeded example.
+    if (next > 0 && next < LOW_STOCK_THRESHOLD && current >= LOW_STOCK_THRESHOLD) {
+      addNotification(
+        `Low stock alert: ${productName} (${color}, ${size}) — ${next} left`,
+        "/admin/inventory"
+      );
+    }
     if (currentAdmin) {
       logAction(
         currentAdmin.name,

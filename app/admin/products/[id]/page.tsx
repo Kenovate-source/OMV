@@ -11,6 +11,7 @@ import { RequireRole } from "@/components/admin/RequireRole";
 import { useInventory } from "@/lib/inventory/inventory-context";
 import { useAdminAudit } from "@/lib/admin/admin-audit-context";
 import { useAdminAuth } from "@/lib/admin/admin-auth-context";
+import { useAdminNotifications } from "@/lib/admin/admin-notifications-context";
 import {
   formatNaira,
   getColors,
@@ -25,6 +26,7 @@ export default function AdminProductDetailPage() {
   const { getProduct, updateProduct, updateVariants, updateVariantStock } = useInventory();
   const { logAction } = useAdminAudit();
   const { currentAdmin } = useAdminAuth();
+  const { addNotification } = useAdminNotifications();
   const [newColor, setNewColor] = useState("");
   const [newSize, setNewSize] = useState("");
 
@@ -60,6 +62,7 @@ export default function AdminProductDetailPage() {
       status: fd.get("status") as ProductStatus,
     });
     if (currentAdmin) logAction(currentAdmin.name, `Updated details for "${product.name}"`);
+    addNotification(`Product updated: ${product.name}`, `/admin/products/${product.id}`);
   }
 
   function addColor() {

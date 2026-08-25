@@ -68,7 +68,7 @@ export default function AdminOrdersPage() {
       ) : (
         <ul className="flex flex-col gap-6">
           {orders.map((o) => (
-            <li key={o.id}>
+            <li key={o.id} id={o.id} className="scroll-mt-24">
               <Card className="p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>

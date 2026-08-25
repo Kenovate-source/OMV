@@ -13,6 +13,7 @@ import {
 } from "@/lib/announcements/announcement-context";
 import { useAdminAudit } from "@/lib/admin/admin-audit-context";
 import { useAdminAuth } from "@/lib/admin/admin-auth-context";
+import { useAdminNotifications } from "@/lib/admin/admin-notifications-context";
 
 const TYPES: AnnouncementType[] = ["Info", "Promotion", "Maintenance", "Launch"];
 
@@ -25,6 +26,7 @@ export default function AdminAnnouncementsPage() {
     useAnnouncements();
   const { logAction } = useAdminAudit();
   const { currentAdmin } = useAdminAuth();
+  const { addNotification } = useAdminNotifications();
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,6 +45,7 @@ export default function AdminAnnouncementsPage() {
       ctaHref: String(fd.get("ctaHref") ?? "").trim() || undefined,
     });
     if (currentAdmin) logAction(currentAdmin.name, `Created announcement "${title}"`);
+    addNotification(`Announcement published: ${title}`, "/admin/announcements");
     e.currentTarget.reset();
   }
 

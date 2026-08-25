@@ -10,6 +10,8 @@ import {
   PRODUCTS,
   formatNaira,
   getOutfitSlot,
+  getColors,
+  getSizes,
   SLOT_LABELS,
   type OutfitSlot,
   type Product,
@@ -19,7 +21,10 @@ import { useCart } from "@/lib/cart/cart-context";
 import { useWishlist } from "@/lib/wishlist/wishlist-context";
 import { useInventory } from "@/lib/inventory/inventory-context";
 
-const SLOT_ORDER: OutfitSlot[] = ["dress", "top", "bottom", "outerwear", "shoes", "bag", "accessory"];
+const SLOT_ORDER: OutfitSlot[] = [
+  "dress", "traditionalWear", "top", "shirt", "jacket", "trousers", "skirt",
+  "shoes", "bag", "headwear", "accessory",
+];
 
 export default function OutfitBuilderPage() {
   const { preferences, savedOutfits, saveOutfit, removeOutfit } = useStyle();
@@ -27,11 +32,13 @@ export default function OutfitBuilderPage() {
   const { toggle: toggleWishlist, has: inWishlist } = useWishlist();
   const { getProduct } = useInventory();
   const [selected, setSelected] = useState<Partial<Record<OutfitSlot, string>>>({});
+  const [sizes, setSizes] = useState<Partial<Record<OutfitSlot, string>>>({});
   const [name, setName] = useState("");
 
   const bySlot = useMemo(() => {
     const map: Record<OutfitSlot, Product[]> = {
-      dress: [], top: [], bottom: [], outerwear: [], shoes: [], bag: [], accessory: [],
+      dress: [], top: [], shirt: [], jacket: [], trousers: [], skirt: [],
+      traditionalWear: [], shoes: [], bag: [], headwear: [], accessory: [],
     };
     PRODUCTS.forEach((p) => map[getOutfitSlot(p)].push(p));
     return map;
@@ -48,7 +55,29 @@ export default function OutfitBuilderPage() {
   }
 
   function selectForSlot(slot: OutfitSlot, productId: string) {
-    setSelected((prev) => ({ ...prev, [slot]: prev[slot] === productId ? undefined : productId }));
+    setSelected((prev) => {
+      const next = { ...prev, [slot]: prev[slot] === productId ? undefined : productId };
+      return next;
+    });
+    setSizes((prev) => {
+      if (selected[slot] === productId) {
+        // Deselecting — clear the size too, nothing is chosen for this slot.
+        const next = { ...prev };
+        delete next[slot];
+        return next;
+      }
+      // Selecting — default to the first available size so a size is
+      // always part of the state the moment a garment is chosen, per the
+      // requirement that "the selected size must be clearly associated
+      // with the garment and carried through to the outfit/bag selection."
+      const product = PRODUCTS.find((p) => p.id === productId);
+      const firstSize = product ? getSizes(product)[0] : undefined;
+      return { ...prev, [slot]: firstSize ?? "" };
+    });
+  }
+
+  function chooseSize(slot: OutfitSlot, size: string) {
+    setSizes((prev) => ({ ...prev, [slot]: size }));
   }
 
   const selectedProducts = Object.entries(selected)
@@ -75,8 +104,16 @@ export default function OutfitBuilderPage() {
   }
 
   function handleAddOutfitToBag() {
-    selectedProducts.forEach(({ product }) => {
-      const variant = product.variants.find((v) => v.stock > 0);
+    selectedProducts.forEach(({ slot, product }) => {
+      const chosenSize = sizes[slot];
+      const firstColor = getColors(product)[0];
+      // Prefer the exact colour+size the customer chose in the builder;
+      // fall back to any in-stock variant only if that precise combination
+      // isn't available, so a chosen size is respected whenever possible.
+      const exact = chosenSize && firstColor
+        ? product.variants.find((v) => v.color === firstColor && v.size === chosenSize && v.stock > 0)
+        : undefined;
+      const variant = exact ?? product.variants.find((v) => v.stock > 0);
       if (variant) addItem(product, variant.color, variant.size);
     });
   }
@@ -105,6 +142,14 @@ export default function OutfitBuilderPage() {
               <p className="text-sm text-foreground">
                 {selectedProducts.length} pieces · {formatNaira(total)}
               </p>
+              <ul className="flex flex-col gap-1">
+                {selectedProducts.map(({ slot, product }) => (
+                  <li key={slot} className="text-xs text-foreground-muted">
+                    {SLOT_LABELS[slot]}: {product.name}
+                    {sizes[slot] ? ` (Size ${sizes[slot]})` : ""}
+                  </li>
+                ))}
+              </ul>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -158,6 +203,27 @@ export default function OutfitBuilderPage() {
                         <p className="mt-2 text-xs text-foreground">{p.name}</p>
                         <p className="text-xs text-foreground-muted">{formatNaira(p.salePrice ?? p.price)}</p>
                       </button>
+                      {active && getSizes(p).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label={`Size for ${p.name}`}>
+                          {getSizes(p).map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              role="radio"
+                              aria-checked={sizes[slot] === s}
+                              onClick={() => chooseSize(slot, s)}
+                              className={cn(
+                                "rounded-full border px-2.5 py-1 text-[11px]",
+                                sizes[slot] === s
+                                  ? "border-gold bg-gold text-gold-foreground"
+                                  : "border-border text-foreground-muted"
+                              )}
+                            >
+                              {s}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => toggleWishlist(p.id)}

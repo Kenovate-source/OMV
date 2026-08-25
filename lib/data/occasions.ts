@@ -88,9 +88,14 @@ export const OCCASION_CATALOGUE: OccasionCategory[] = [
 export interface CuratedLook {
   dress?: string;
   top?: string;
-  bottom?: string;
-  outerwear?: string;
+  shirt?: string;
+  jacket?: string;
+  trousers?: string;
+  skirt?: string;
+  traditionalWear?: string;
+  shoes?: string;
   bag?: string;
+  headwear?: string;
   accessory?: string;
 }
 
@@ -104,32 +109,37 @@ export const CURATED_LOOKS: Record<string, CuratedLook> = {
   "Wedding Guest": {
     dress: "w-emerald-wrap-dress",
     bag: "a-gold-clutch",
-    accessory: "w-heritage-headwrap",
+    headwear: "w-heritage-headwrap",
   },
   "Church": {
     dress: "w-emerald-wrap-dress",
-    accessory: "w-heritage-headwrap",
+    headwear: "w-heritage-headwrap",
   },
   "Sunday Service": {
     dress: "w-emerald-wrap-dress",
-    accessory: "w-heritage-headwrap",
+    headwear: "w-heritage-headwrap",
   },
   "Office": {
-    top: "m-linen-shirt",
-    bottom: "m-tailored-chino",
+    shirt: "m-linen-shirt",
+    trousers: "m-tailored-chino",
     accessory: "m-leather-belt",
   },
   "Business Casual": {
-    top: "m-linen-shirt",
-    bottom: "m-tailored-chino",
+    shirt: "m-linen-shirt",
+    trousers: "m-tailored-chino",
     accessory: "m-leather-belt",
   },
   "Everyday Wear": {
     top: "w-ivory-blouse",
-    bottom: "w-tailored-trouser",
+    trousers: "w-tailored-trouser",
   },
   "Weekend": {
     top: "w-ivory-blouse",
-    bottom: "w-tailored-trouser",
+    trousers: "w-tailored-trouser",
+  },
+  "Birthday": {
+    top: "w-ivory-blouse",
+    trousers: "w-tailored-trouser",
+    bag: "a-gold-clutch",
   },
 };

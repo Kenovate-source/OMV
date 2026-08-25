@@ -15,6 +15,11 @@ export interface AdminNotification {
   message: string;
   read: boolean;
   timestamp: string;
+  /** Where clicking this notification should navigate. Absent means the
+   * notification has no specific destination — clicking it still marks it
+   * read (there's no further detail to reveal since messages here are
+   * never truncated). */
+  href?: string;
 }
 
 const SEED: AdminNotification[] = [
@@ -23,12 +28,14 @@ const SEED: AdminNotification[] = [
     message: "Weekly sales report is ready to review.",
     read: false,
     timestamp: new Date().toISOString(),
+    href: "/admin/reports",
   },
   {
     id: "n2",
     message: "Product reviews are awaiting moderation.",
     read: false,
     timestamp: new Date().toISOString(),
+    href: "/admin/reviews",
   },
 ];
 
@@ -36,6 +43,10 @@ interface AdminNotificationsContextValue {
   notifications: AdminNotification[];
   markRead: (id: string) => void;
   unreadCount: number;
+  /** Lets other admin surfaces (product edits, inventory, announcements)
+   * push a real, actionable notification rather than this list only ever
+   * containing seed data plus order events. */
+  addNotification: (message: string, href?: string) => void;
 }
 
 const AdminNotificationsContext = createContext<AdminNotificationsContextValue | undefined>(
@@ -65,11 +76,25 @@ export function AdminNotificationsProvider({ children }: { children: ReactNode }
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
   }, [notifications, hydrated]);
 
+  const addNotification: AdminNotificationsContextValue["addNotification"] = (message, href) => {
+    setNotifications((prev) => [
+      {
+        id: `note-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        message,
+        href,
+        read: false,
+        timestamp: new Date().toISOString(),
+      },
+      ...prev,
+    ]);
+  };
+
   // Real integration: a genuinely new order (placed via the actual
-  // storefront checkout) generates a notification here, rather than this
-  // page showing only isolated mock data. The first run after hydration
-  // just records existing order ids as a baseline so past history doesn't
-  // spam the notification list on load.
+  // storefront checkout) generates a notification here, deep-linked to
+  // that order in Admin Orders (matched by anchor id — see
+  // app/admin/orders/page.tsx). The first run after hydration just
+  // records existing order ids as a baseline so past history doesn't spam
+  // the notification list on load.
   useEffect(() => {
     if (!hydrated) return;
     if (!initialized.current) {
@@ -83,9 +108,10 @@ export function AdminNotificationsProvider({ children }: { children: ReactNode }
     setNotifications((prev) => [
       ...newOnes.map((o) => ({
         id: `order-${o.id}`,
-        message: `New order placed: ${o.id}`,
+        message: `New order received: ${o.id}`,
         read: false,
         timestamp: new Date().toISOString(),
+        href: `/admin/orders#${o.id}`,
       })),
       ...prev,
     ]);
@@ -97,7 +123,9 @@ export function AdminNotificationsProvider({ children }: { children: ReactNode }
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <AdminNotificationsContext.Provider value={{ notifications, markRead, unreadCount }}>
+    <AdminNotificationsContext.Provider
+      value={{ notifications, markRead, unreadCount, addNotification }}
+    >
       {children}
     </AdminNotificationsContext.Provider>
   );
