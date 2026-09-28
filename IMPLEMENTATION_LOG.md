@@ -6,6 +6,117 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 5 — Stage 1, Milestone 1: Foundation (reconstructed after environment incidents)
+
+### ENVIRONMENT INCIDENTS
+
+The sandbox filesystem reset THREE times during this milestone's work —
+once between conversation turns, then twice more mid-turn during the
+final audit/reconstruction pass. Each time, `/home/claude/omv` and all
+uncommitted work were wiped. No Milestone 1 zip had been packaged before
+the first incident (correctly, per the "no zip until audited"
+instruction in force at the time), so nothing was recoverable from a
+prior delivered artifact for that one. Each incident was disclosed
+immediately upon discovery. Starting with the second reconstruction, an
+interim zip was saved to the persistent /mnt/user-data/outputs/ folder
+after every individual file was written (not only at the end), which is
+what allowed the third reset to lose zero completed work. All content
+was reconstructed faithfully from the approved architecture already
+established earlier in this conversation — nothing was re-derived or
+altered because of the resets.
+
+### FINAL SCHEMA INTEGRITY AUDIT
+
+Performed against the actual schema.prisma file. Structural checks:
+49/49 braces balanced, 30 models, 12 enums, all 4 named relations
+(ProposedBy, ReviewedBy, SourceProduct, RelatedProduct) present exactly
+twice.
+
+**Defects found and corrected:**
+
+1. ProductVariant.product used onDelete: Cascade, contradicting the
+   schema's own soft-delete policy on Product. Fixed: removed the
+   override, now defaults to Restrict.
+2. Payment had no refundedAmount field — PARTIALLY_REFUNDED status alone
+   couldn't record how much was refunded. Fixed: added
+   refundedAmount Int?.
+3. User had no way to be deactivated (AdminUser has isActive, User
+   didn't). Fixed: added isActive Boolean @default(true) to User.
+4. Redundant indexes removed (pure cleanup, no behavior change):
+   explicit @@index on email/reference/productId where a sibling
+   @unique or composite @@unique already creates an equivalent index.
+
+**Findings flagged for decision, NOT silently changed:**
+
+- Order.promotion's onDelete defaults to Restrict; SetNull may be more
+  correct since Order.discountAmount already denormalizes the actual
+  historical discount. Left as Restrict pending approval.
+- No InventoryTransaction/StockMovement history model exists. Manual
+  admin stock edits get a free-text AuditLog entry, but system-initiated
+  movements (reservation, release, deduction, restoration) have no
+  record at all, since AuditLog.adminUserId is required. Recommending a
+  new model; NOT added, flagged for approval since it's beyond the
+  original 30-model lock.
+- AuditLog.action is free text only, no structured previousValue/
+  newValue/targetType/targetId. Recommending these additions; NOT added,
+  same reason.
+
+**Confirmed correct, no change needed:** Order.user and Payment.order
+default Restrict (protects financial history from deletion — Payment's
+Restrict is the actual binding protection in practice, since almost
+every real order acquires a Payment row immediately); Session/
+PasswordResetToken/EmailVerificationToken Cascade on User/AdminUser
+(correct — ephemeral security artifacts, not historical records);
+AuditLog Restrict on AdminUser; WishlistItem/Review Cascade on Product
+(acceptable — opinion/interest content, not financial history);
+ContactPoint SetNull on BusinessLocation. variantKey uniqueness
+confirmed correctly scoped via @@unique([productId, variantKey]) — cross-
+product collisions are allowed, same-product collisions are blocked at
+the DB level. Money fields confirmed all Int with currency stored
+explicitly. Auth: passwords/tokens confirmed hashed, expiry/single-use/
+per-device session support all present.
+
+**Operational-discipline note:** Prisma's onDelete only governs cascade
+behavior FROM a parent's deletion; it cannot itself prevent a direct
+DELETE on Payment or AuditLog. The guarantee these are never deleted
+must be enforced by never writing that operation at the service layer
+(no such layer exists yet in Milestone 1's scope) — documented explicitly
+so this isn't assumed to be schema-enforced when it isn't yet
+code-enforced.
+
+### VALIDATION ATTEMPTED (exact commands, exact results)
+
+| Command | Result |
+|---|---|
+| npm install | 403 Forbidden from registry.npmjs.org — no network access, reproduced identically across all three reconstruction attempts |
+| npx prisma validate | Could not run — prisma package not installed, same network block |
+| tsc --noEmit against prisma/seed.ts (global tsc IS available) | 5 errors, ALL "module not found" for @prisma/client, argon2, @types/node's process global, and a --jsx artifact from bypassing tsconfig.json to run this in isolation. Zero syntax or logic errors in seed.ts's own code. This confirms the seed script's TypeScript is well-formed; it does not confirm correctness against the real generated Prisma Client's API shape, since that client doesn't exist without prisma generate actually running. |
+
+RUNTIME VERIFICATION PENDING (requires real infrastructure): prisma
+generate, prisma validate (tool present), prisma migrate dev, database
+connectivity, npm run db:seed's actual execution, Prisma Studio
+row-count confirmation.
+
+### IMPLEMENTED
+docs/adr/001-backend-architecture.md, docs/adr/002-variant-identity.md,
+prisma/schema.prisma (30 models, 12 enums, all Milestone 1 audit fixes
+applied), prisma/seed.ts, prisma/MIGRATION_GUIDE.md, .env.example,
+package.json (dependencies + scripts).
+
+### MANUAL SETUP REQUIRED
+A Postgres provider (Neon or Vercel Postgres) with separate databases/
+branches per environment, created and connection strings supplied.
+
+### KNOWN LIMITATIONS
+No network access in this sandbox (reconfirmed across Phase 4 and
+multiple Phase 5 attempts). Admin seed passwords are placeholders
+requiring change after first login. PaymentProviderConfig seeds inactive
+until PAYSTACK_SECRET_KEY is configured. This sandbox's filesystem is
+not reliably persistent within a session — see Environment Incidents
+above.
+
+---
+
 ## Phase 4 — Refinement Round 2: Actionable Notifications & Real Mannequin Composition
 
 **Status:** Complete, pending review. Addresses two specific gaps found in
