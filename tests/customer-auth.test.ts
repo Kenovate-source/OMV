@@ -142,6 +142,54 @@ describe("/me and session isolation", () => {
   });
 });
 
+
+describe("session restoration (/me with an expired or absent access token)", () => {
+  it("restores the session from a valid refresh cookie and re-issues an access cookie", async () => {
+    const { email, res } = await makeUser();
+    const refreshToken = res.cookies.get("omv_refresh_token")!.value;
+
+    // Simulate an expired access token by sending ONLY the refresh cookie.
+    const out = await me(
+      jsonRequest("/api/auth/me", { method: "GET", cookies: { omv_refresh_token: refreshToken } })
+    );
+    const body = await out.json();
+    expect(body.user.email).toBe(email);
+    expect(out.cookies.get("omv_access_token")?.value).toBeTruthy();
+  });
+
+  it("does NOT restore from a revoked session", async () => {
+    const { res } = await makeUser();
+    const refreshToken = res.cookies.get("omv_refresh_token")!.value;
+    await logout(jsonRequest("/api/auth/logout", { cookies: { omv_refresh_token: refreshToken } }));
+
+    const out = await me(
+      jsonRequest("/api/auth/me", { method: "GET", cookies: { omv_refresh_token: refreshToken } })
+    );
+    expect((await out.json()).user).toBeNull();
+  });
+
+  it("does NOT restore for a deactivated account", async () => {
+    const { email, res } = await makeUser();
+    await prisma.user.update({ where: { email }, data: { isActive: false } });
+    const out = await me(
+      jsonRequest("/api/auth/me", {
+        method: "GET",
+        cookies: { omv_refresh_token: res.cookies.get("omv_refresh_token")!.value },
+      })
+    );
+    expect((await out.json()).user).toBeNull();
+  });
+
+  it("does NOT restore from an expired session", async () => {
+    const { res } = await makeUser();
+    const token = res.cookies.get("omv_refresh_token")!.value;
+    const hash = createHash("sha256").update(token).digest("hex");
+    await prisma.session.update({ where: { refreshTokenHash: hash }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    const out = await me(jsonRequest("/api/auth/me", { method: "GET", cookies: { omv_refresh_token: token } }));
+    expect((await out.json()).user).toBeNull();
+  });
+});
+
 describe("logout and session revocation", () => {
   it("revokes the session server-side so the refresh token stops working", async () => {
     const { res } = await makeUser();

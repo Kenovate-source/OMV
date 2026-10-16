@@ -97,6 +97,57 @@ describe("admin authentication (database-backed, not the old signInAs prototype)
   });
 });
 
+
+describe("admin session restoration (/admin/auth/me with an expired or absent access token)", () => {
+  it("restores an admin session from a valid refresh cookie, with the CURRENT database role", async () => {
+    const login = await adminLogin(
+      jsonRequest("/api/admin/auth/login", { body: { email: admins.BUSINESS.email, password: PASSWORD } })
+    );
+    const refreshToken = login.cookies.get("omv_admin_refresh_token")!.value;
+
+    const out = await adminMe(
+      jsonRequest("/api/admin/auth/me", { method: "GET", cookies: { omv_admin_refresh_token: refreshToken } })
+    );
+    const body = await out.json();
+    expect(body.admin.role).toBe("BUSINESS");
+    expect(out.cookies.get("omv_admin_access_token")?.value).toBeTruthy();
+  });
+
+  it("does NOT restore after logout (revoked) or for a deactivated admin", async () => {
+    const a = await createAdmin("STAFF");
+    const login = await adminLogin(
+      jsonRequest("/api/admin/auth/login", { body: { email: a.email, password: PASSWORD } })
+    );
+    const refreshToken = login.cookies.get("omv_admin_refresh_token")!.value;
+
+    await prisma.adminUser.update({ where: { id: a.id }, data: { isActive: false } });
+    const deactivated = await adminMe(
+      jsonRequest("/api/admin/auth/me", { method: "GET", cookies: { omv_admin_refresh_token: refreshToken } })
+    );
+    expect((await deactivated.json()).admin).toBeNull();
+
+    await prisma.adminUser.update({ where: { id: a.id }, data: { isActive: true } });
+    await adminLogout(jsonRequest("/api/admin/auth/logout", { cookies: { omv_admin_refresh_token: refreshToken } }));
+    const revoked = await adminMe(
+      jsonRequest("/api/admin/auth/me", { method: "GET", cookies: { omv_admin_refresh_token: refreshToken } })
+    );
+    expect((await revoked.json()).admin).toBeNull();
+  });
+
+  it("a CUSTOMER refresh cookie can never restore an ADMIN session", async () => {
+    const email = uniqueEmail("cust");
+    customerEmails.push(email);
+    const reg = await customerRegister(
+      jsonRequest("/api/auth/register", { body: { email, password: "CustomerPassw0rd!", fullName: "Cust" } })
+    );
+    const customerRefresh = reg.cookies.get("omv_refresh_token")!.value;
+    const out = await adminMe(
+      jsonRequest("/api/admin/auth/me", { method: "GET", cookies: { omv_admin_refresh_token: customerRefresh } })
+    );
+    expect((await out.json()).admin).toBeNull();
+  });
+});
+
 describe("server-side RBAC on a restricted endpoint (GET /api/admin/audit-logs — SUPER only)", () => {
   it("rejects an unauthenticated request with 401", async () => {
     const res = await auditLogs(jsonRequest("/api/admin/audit-logs", { method: "GET" }));
