@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -19,7 +20,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { useAdminAuth, ADMIN_SEED, type AdminRole } from "@/lib/admin/admin-auth-context";
+import { useAdminAuth, type AdminRole } from "@/lib/admin/admin-auth-context";
 import { useAdminNotifications } from "@/lib/admin/admin-notifications-context";
 
 interface NavItem {
@@ -49,45 +50,84 @@ const ROLE_LABEL: Record<AdminRole, string> = {
   staff: "Staff Admin",
 };
 
-function LoginPicker() {
-  const { signInAs } = useAdminAuth();
+function AdminLoginForm() {
+  const { signIn } = useAdminAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const formData = new FormData(e.currentTarget);
+    const result = await signIn(
+      String(formData.get("email") ?? ""),
+      String(formData.get("password") ?? "")
+    );
+    setSubmitting(false);
+    if (!result.ok) setError(result.error ?? "Sign-in failed.");
+  }
+
   return (
-    <div className="mx-auto max-w-lg px-6 py-24 text-center">
+    <div className="mx-auto max-w-sm px-6 py-24 text-center">
       <ShieldCheck size={32} className="mx-auto text-gold" aria-hidden="true" />
       <h1 className="mt-4 font-serif text-3xl text-foreground">OMV Admin Portal</h1>
       <p className="mt-2 text-sm text-foreground-muted">
-        Sign in as one of the 5 seeded administrators to preview role-based
-        access. Real authentication and unlimited admin accounts are wired
-        up in Phase 5.
+        Sign in with your administrator account.
       </p>
-      <div className="mt-8 flex flex-col gap-3">
-        {ADMIN_SEED.map((a) => (
-          <button
-            key={a.id}
-            type="button"
-            onClick={() => signInAs(a.id)}
-            className="flex items-center justify-between rounded-input border border-border bg-surface-elevated px-5 py-4 text-left transition-colors hover:border-gold"
-          >
-            <span>
-              <span className="block text-sm text-foreground">{a.name}</span>
-              <span className="block text-xs text-foreground-muted">{a.email}</span>
-            </span>
-            <span className="rounded-full border border-border px-3 py-1 text-xs text-gold">
-              {ROLE_LABEL[a.role]}
-            </span>
-          </button>
-        ))}
-      </div>
+      <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4 text-left">
+        <div>
+          <label htmlFor="admin-email" className="mb-1.5 block text-sm text-foreground">
+            Email address
+          </label>
+          <input
+            id="admin-email"
+            name="email"
+            type="email"
+            autoComplete="username"
+            required
+            className="h-11 w-full rounded-input border border-border bg-surface px-4 text-sm text-foreground"
+          />
+        </div>
+        <div>
+          <label htmlFor="admin-password" className="mb-1.5 block text-sm text-foreground">
+            Password
+          </label>
+          <input
+            id="admin-password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            required
+            className="h-11 w-full rounded-input border border-border bg-surface px-4 text-sm text-foreground"
+          />
+        </div>
+        {error && (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="h-12 rounded-button bg-primary px-6 text-sm font-medium text-primary-foreground disabled:opacity-60"
+        >
+          {submitting ? "Signing in…" : "Sign In"}
+        </button>
+      </form>
     </div>
   );
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { currentAdmin, signOut, can } = useAdminAuth();
+  const { currentAdmin, isLoading, signOut, can } = useAdminAuth();
   const { unreadCount } = useAdminNotifications();
 
-  if (!currentAdmin) return <LoginPicker />;
+  // While the session is being restored from /api/admin/auth/me, render
+  // nothing rather than flashing the login form at an already-signed-in admin.
+  if (isLoading) return null;
+  if (!currentAdmin) return <AdminLoginForm />;
 
   const visibleNav = NAV.filter((n) => can(n.roles));
 
@@ -96,16 +136,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-card border border-dashed border-border bg-surface-elevated p-4 text-xs text-foreground-muted">
         <p>
           Signed in as <span className="text-foreground">{currentAdmin.name}</span> ·{" "}
-          <span className="text-gold">{ROLE_LABEL[currentAdmin.role]}</span>. This
-          portal previews RBAC locally — real multi-admin authentication
-          ships in Phase 5.
+          <span className="text-gold">{ROLE_LABEL[currentAdmin.role]}</span>.
+          Sign-in and role enforcement are real (server-side). Product,
+          inventory, order and other admin data on these pages is still
+          browser-local prototype data until its backend is built — edits
+          here are not yet saved to the shared database.
         </p>
         <button
           type="button"
           onClick={signOut}
           className="flex shrink-0 items-center gap-1.5 text-foreground hover:text-gold"
         >
-          <LogOut size={14} aria-hidden="true" /> Switch admin
+          <LogOut size={14} aria-hidden="true" /> Sign out
         </button>
       </div>
 

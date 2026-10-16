@@ -36,3 +36,13 @@ yet at this stage.
 
 No two legitimately distinct variants can share a key, for any current
 or future product category. Clothing/shoe products are unaffected.
+
+## Known edge case (found by executing the derivation, not by inspection)
+
+A variant with no color, no size AND no attributes derives the empty key
+`""`. The `@@unique([productId, variantKey])` constraint does **not**
+reject the first such variant for a product — it only prevents a second.
+An empty key is a data-entry error, so it MUST be rejected by
+application-layer validation when product/variant create-and-edit
+endpoints are built (planned with product CRUD, a later milestone). Do
+not rely on the database constraint alone to catch it.

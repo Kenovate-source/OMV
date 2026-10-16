@@ -12,8 +12,10 @@ import {
   Shirt,
   ClipboardList,
   Info,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useAuth } from "@/lib/auth/auth-context";
 
 const NAV = [
   { href: "/account", label: "Overview", icon: User },
@@ -28,16 +30,39 @@ const NAV = [
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user, isLoading, logout } = useAuth();
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-12">
       <div className="mb-6 flex items-start gap-3 rounded-card border border-dashed border-border bg-surface-elevated p-4 text-xs text-foreground-muted">
         <Info size={16} className="mt-0.5 shrink-0 text-gold" aria-hidden="true" />
-        <p>
-          Your account dashboard is saved locally in this browser for review
-          purposes. It will connect to your signed-in account once real
-          authentication ships in Phase 5.
+        <p className="flex-1">
+          {isLoading
+            ? "Checking your sign-in status…"
+            : user
+            ? `Signed in as ${user.email}. `
+            : "You are browsing as a guest. "}
+          Sign-in is real and server-side, but the account data on these
+          pages (addresses, orders, loyalty and so on) is still saved only in
+          this browser until its backend is built.
+          {!isLoading && !user && (
+            <>
+              {" "}
+              <Link href="/login" className="text-gold hover:underline">
+                Sign in
+              </Link>
+            </>
+          )}
         </p>
+        {user && (
+          <button
+            type="button"
+            onClick={() => void logout()}
+            className="flex shrink-0 items-center gap-1.5 text-foreground hover:text-gold"
+          >
+            <LogOut size={14} aria-hidden="true" /> Sign out
+          </button>
+        )}
       </div>
 
       {/* Mobile tab bar */}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -11,15 +12,22 @@ export default function LoginPage() {
   const [method, setMethod] = useState<"email" | "phone">("email");
   const [rememberMe, setRememberMe] = useState(true);
   const { loginWithEmail, loginWithPhone, isLoading } = useAuth();
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError(null);
     const formData = new FormData(e.currentTarget);
     const password = String(formData.get("password") ?? "");
-    if (method === "email") {
-      await loginWithEmail(String(formData.get("email") ?? ""), password, rememberMe);
+    const result =
+      method === "email"
+        ? await loginWithEmail(String(formData.get("email") ?? ""), password, rememberMe)
+        : await loginWithPhone(String(formData.get("phone") ?? ""), password, rememberMe);
+    if (result.ok) {
+      router.push("/account");
     } else {
-      await loginWithPhone(String(formData.get("phone") ?? ""), password, rememberMe);
+      setError(result.error ?? "Sign-in failed.");
     }
   }
 
@@ -82,6 +90,12 @@ export default function LoginPage() {
             Forgot password?
           </Link>
         </div>
+
+        {error && (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
 
         <Button type="submit" size="lg" disabled={isLoading}>
           {isLoading ? "Signing in…" : "Sign In"}

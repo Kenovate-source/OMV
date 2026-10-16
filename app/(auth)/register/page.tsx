@@ -1,22 +1,32 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/lib/auth/auth-context";
 
 export default function RegisterPage() {
   const { register, isLoading } = useAuth();
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setError(null);
     const formData = new FormData(e.currentTarget);
-    await register(
+    const result = await register(
       String(formData.get("fullName") ?? ""),
       String(formData.get("email") ?? ""),
       String(formData.get("password") ?? "")
     );
+    if (result.ok) {
+      router.push("/account");
+    } else {
+      setError(result.error ?? "Registration failed.");
+    }
   }
 
   return (
@@ -38,6 +48,12 @@ export default function RegisterPage() {
           hint="At least 8 characters."
           required
         />
+        {error && (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        )}
+
         <Button type="submit" size="lg" disabled={isLoading}>
           {isLoading ? "Creating account…" : "Create Account"}
         </Button>
