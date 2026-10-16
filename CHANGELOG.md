@@ -2,6 +2,15 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
+## v0.5.0-alpha.1 — Phase 5 Stage 1 runtime: authentication foundation (INCOMPLETE, unverified against a database)
+
+First server-side code in the project. Real customer and admin
+authentication, server-side RBAC, password recovery, Prisma client
+integration and auth tests — all written but never executed against
+PostgreSQL. See IMPLEMENTATION_LOG.md ("Phase 5 — Stage 1 Runtime") for
+what is implemented, what was actually executed, and the known gaps.
+Also corrects a Milestone 1 defect (predictable seeded admin passwords).
+
 ## v0.4.2 — Actionable Notifications & Real Mannequin Composition (Phase 4)
 
 **Status:** Awaiting your approval. Fixes two specific gaps found in

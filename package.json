@@ -12,7 +12,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "next": "^14.2.0",
@@ -41,7 +42,8 @@
     "@typescript-eslint/parser": "^6.21.0",
     "prettier": "^3.2.5",
     "prisma": "^5.14.0",
-    "tsx": "^4.10.5"
+    "tsx": "^4.10.5",
+    "vitest": "^1.6.0"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

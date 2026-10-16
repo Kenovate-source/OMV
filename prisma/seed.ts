@@ -12,6 +12,7 @@
 
 import { PrismaClient, ProductCategory, GarmentSlot, AdminRole } from "@prisma/client";
 import argon2 from "argon2";
+import { randomBytes } from "crypto";
 import { PRODUCTS, type Product as CatalogueProduct } from "../lib/data/products";
 import { ADMIN_SEED } from "../lib/admin/admin-auth-context";
 
@@ -58,20 +59,43 @@ function computeVariantKey(color?: string | null, size?: string | null, attribut
 async function seedCore() {
   console.log("Seeding core data (safe for any environment)...");
 
+  // ADMIN BOOTSTRAP PASSWORDS — never derived from anything in source code.
+  // Now that /api/admin/auth/login is real, a predictable password here
+  // would be a working credential for anyone who can read this repo.
+  //   - If SEED_ADMIN_PASSWORD is set, every NEWLY CREATED admin gets it
+  //     (min 12 chars) — convenient for local development.
+  //   - Otherwise each newly created admin gets its own random password,
+  //     printed ONCE below and never stored anywhere in plaintext.
+  // Existing admins are left completely untouched (their password is NOT
+  // reset by re-running the seed), so a re-run can never silently change
+  // or expose a live credential.
+  const fixedPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (fixedPassword !== undefined && fixedPassword.length < 12) {
+    throw new Error("SEED_ADMIN_PASSWORD must be at least 12 characters.");
+  }
+  const generated: { email: string; role: string; password: string }[] = [];
+  let created = 0;
   for (const admin of ADMIN_SEED) {
-    const passwordHash = await argon2.hash(`Omv-${admin.id}-ChangeMe!`, { type: argon2.argon2id });
-    await prisma.adminUser.upsert({
-      where: { email: admin.email },
-      update: {},
-      create: {
+    const existing = await prisma.adminUser.findUnique({ where: { email: admin.email } });
+    if (existing) continue;
+    const password = fixedPassword ?? randomBytes(12).toString("base64url");
+    await prisma.adminUser.create({
+      data: {
         email: admin.email,
         fullName: admin.name,
         role: admin.role.toUpperCase() as AdminRole,
-        passwordHash,
+        passwordHash: await argon2.hash(password, { type: argon2.argon2id }),
       },
     });
+    created += 1;
+    if (!fixedPassword) generated.push({ email: admin.email, role: admin.role, password });
   }
-  console.log(`  ${ADMIN_SEED.length} admin accounts seeded.`);
+  console.log(`  ${created} admin account(s) created, ${ADMIN_SEED.length - created} already existed (left unchanged).`);
+  if (generated.length > 0) {
+    console.log("\n  ===== ONE-TIME ADMIN PASSWORDS — copy now, they are not stored anywhere =====");
+    for (const g of generated) console.log(`  ${g.role.padEnd(9)} ${g.email.padEnd(24)} ${g.password}`);
+    console.log("  ==============================================================================\n");
+  }
 
   for (const p of PRODUCTS) {
     const product = await prisma.product.upsert({

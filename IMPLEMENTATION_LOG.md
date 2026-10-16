@@ -6,6 +6,143 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 5 — Stage 1 Runtime: real authentication foundation (NOT complete)
+
+**Status: INCOMPLETE and UNVERIFIED AGAINST A LIVE DATABASE.** The code
+below is written and statically checked; it has never been run against
+PostgreSQL. Do not read "implemented" as "working in production."
+
+### ENVIRONMENT INCIDENT (4th this session)
+The sandbox filesystem reset a fourth time mid-turn while Route Handlers
+were being written, losing the two files written since the last
+checkpoint (register/login — rewritten). Mitigation adopted and used for
+the rest of the work: re-zip to the persistent outputs folder after
+every file. Nothing completed was lost after that point.
+
+### IMPLEMENTED (code written; see VERIFIED / PENDING below)
+- `lib/server/prisma.ts` — PrismaClient singleton.
+- `lib/server/auth/passwords.ts` — Argon2id hash/verify (verify never throws).
+- `lib/server/auth/tokens.ts` — 15-min HS256 access JWT (jose) carrying a
+  `type` claim; opaque 256-bit refresh tokens stored ONLY as SHA-256
+  hashes (a fast hash is correct for high-entropy tokens; argon2 is for
+  human-chosen passwords).
+- `lib/server/auth/cookies.ts` — httpOnly, SameSite=Lax, Secure-in-prod
+  cookies; customer and admin use fully separate cookie names.
+- `lib/server/auth/rbac.ts` — `requireAdminRole()` / `requireCustomer()`:
+  the server-side authorization point. It re-reads the account from the
+  database on every request, so a demotion or deactivation takes effect
+  immediately instead of when the old 15-minute token expires, and a
+  token that self-asserts `role: SUPER` is ignored in favour of the
+  database role.
+- `lib/server/auth/rateLimit.ts` — in-memory limiter (see limitations).
+- `lib/server/email.ts` — real Resend REST call when `RESEND_API_KEY` is
+  set; dev-only console fallback; in production without a key it logs an
+  error and sends nothing (never pretends).
+- Customer routes: `POST /api/auth/{register,login,logout,refresh,
+  forgot-password,reset-password}`, `GET /api/auth/me`.
+- Admin routes: `POST /api/admin/auth/{login,logout}`,
+  `GET /api/admin/auth/me`, and `GET /api/admin/audit-logs` — the first
+  genuinely role-restricted endpoint (SUPER only), the concrete proof
+  that restriction is enforced server-side.
+- UI wiring: `AuthProvider` and `AdminAuthProvider` now call the real
+  endpoints and restore the session from cookies on page load, keeping
+  their exported hook shapes. `AdminShell`'s one-click admin picker was
+  replaced by an email+password form (the prototype `signInAs` is gone —
+  it was incompatible with real authentication). Login/Register pages
+  now display real errors and redirect. New `/forgot-password` and
+  `/reset-password` pages (the login page had linked to a non-existent
+  `/forgot-password` since Phase 1). `DashboardShell` now shows real
+  sign-in state and a working Sign out (no UI could previously sign a
+  customer out).
+- Security behaviours: identical responses for unknown-email vs
+  wrong-password vs deactivated account; a well-formed dummy argon2 hash
+  is verified on the unknown-account path so response time does not
+  reveal account existence; forgot-password always returns the same
+  message; reset tokens are stored hashed, expire in 1 hour, are
+  single-use, supersede earlier tokens, and a successful reset revokes
+  every active session of that user, atomically in one transaction;
+  refresh tokens rotate on every use.
+- Tests (vitest, real Route Handlers against a real database):
+  `tests/customer-auth.test.ts`, `tests/admin-auth-rbac.test.ts`,
+  `tests/README.md`.
+- Build hardening: `next.config.js` externalizes `argon2` and
+  `@prisma/client`; `tsconfig.json` excludes `tests`, `prisma` and
+  `vitest.config.ts` so tooling cannot break `next build`'s type-check.
+
+### CORRECTION TO MILESTONE 1 (a defect I introduced)
+`prisma/seed.ts` derived admin bootstrap passwords from a predictable
+pattern in source (`Omv-<id>-ChangeMe!`). Harmless while login was a
+mock; with real admin login it would have made seeded production admins
+trivially compromisable by anyone who can read the repo. Fixed: admins
+now get `SEED_ADMIN_PASSWORD` (min 12 chars) if set, otherwise a random
+per-admin password printed once and stored nowhere; the seed never
+resets or touches an admin that already exists.
+
+### VERIFIED (actually executed in the sandbox)
+- `rateLimit.ts` transpiled and run: allows exactly N, blocks N+1,
+  isolates keys, resets after the window, derives the client key from
+  `x-forwarded-for` / `x-real-ip` / fallback. PASS.
+- The dummy hash used for timing equalization decodes to a 16-byte salt
+  and 32-byte digest in a valid `$argon2id$` encoding, so argon2 will
+  actually compute rather than fail early. PASS.
+- `computeVariantKey` (extracted verbatim from seed.ts) run against
+  clothing, colour-only, size-only, two book editions, attribute-order
+  independence. PASS. This also surfaced a real edge case (empty key),
+  now recorded in ADR-002.
+- Project-wide `tsc` (with the sandbox's TypeScript-6 deprecation
+  silenced; first attempt aborted on config and checked nothing, which
+  is why it was rerun): 2,027 errors, ALL attributable to uninstalled
+  packages (`@types/react`, `@types/node`, `@prisma/client`, etc.). After
+  excluding every error code explained by absent type packages, ZERO
+  residual errors remain in the new/changed files. **This is weaker than
+  a real `next build`**: unresolved types become `any`, which can hide
+  genuine mismatches (e.g. misuse of Prisma Client calls).
+
+### RUNTIME VERIFICATION PENDING (cannot be done without network/DB)
+`npm install`, `prisma generate`, `prisma validate`, `prisma migrate`,
+seed execution, `next build`, and ALL vitest tests (written, never run).
+Not one HTTP request has been served by this code. The most likely
+failures on first real run are Prisma-Client call-shape mismatches and
+Next/TypeScript strictness issues the stub-less check could not see.
+
+### MANUAL SETUP REQUIRED
+Postgres (separate DB/branch per environment); `DATABASE_URL`,
+`DIRECT_URL`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`,
+`NEXT_PUBLIC_APP_URL`; for real reset emails: a Resend account, a
+verified sending domain (DNS), `RESEND_API_KEY`, `EMAIL_FROM_ADDRESS`.
+
+### KNOWN LIMITATIONS / GAPS (stated, not hidden)
+1. **Admin passwords cannot be changed or reset through the app.** Admin
+   forgot-password / change-password endpoints do not exist. Until built,
+   rotating an admin credential requires a direct database update. This
+   should be the very next item.
+2. **Phone sign-in is not implemented** (the UI offers it; it returns an
+   explicit "not available yet" error rather than faking success).
+3. **No email-verification flow** (`User.emailVerified` and its token
+   table exist; no endpoint issues/consumes tokens).
+4. **Rate limiting is in-memory**, per serverless instance — not a
+   shared limit. Upstash/Vercel KV needed for a true one.
+5. **No CSRF token / Origin check.** Mitigation relied upon:
+   SameSite=Lax cookies. Defence-in-depth Origin validation deferred.
+6. **Nothing requires login yet.** `/account/*` is not auth-gated and
+   checkout does not require an account (account-required checkout
+   arrives with the order/payment milestone). Logging in changes no
+   access.
+7. **Admin data is still prototype.** An admin now signs in for real, but
+   Products/Inventory/Orders/etc. still read and write browser-local
+   contexts; their edits are NOT saved to the database. The admin
+   Audit Logs page is not yet wired to the real `/api/admin/audit-logs`.
+8. Expired sessions/tokens are never purged; no "log out all devices"
+   or session-list endpoint yet.
+9. Cross-user isolation of orders/addresses/family profiles cannot be
+   tested — those endpoints do not exist. Only identity/session
+   isolation is tested.
+
+### TEST STATUS
+WRITTEN, NOT EXECUTED. See `tests/README.md`.
+
+---
+
 ## Phase 5 — Stage 1, Milestone 1: Foundation (reconstructed after environment incidents)
 
 ### ENVIRONMENT INCIDENTS
