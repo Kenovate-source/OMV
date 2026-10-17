@@ -2,6 +2,15 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
+## v0.5.0-alpha.2 — Fix stale-AdminShell build failure; session restoration beyond 15 minutes
+
+No new features. Documents the build-failure root cause (repository out
+of sync with the package), adds `docs/FILE-MANIFEST.sha256` +
+`docs/SYNC-CHECK.md` to detect stale files, and fixes a real defect found
+in the audit: sessions appeared to expire after 15 minutes because
+nothing renewed the access token. Still unverified against a real
+install, build or database.
+
 ## v0.5.0-alpha.1 — Phase 5 Stage 1 runtime: authentication foundation (INCOMPLETE, unverified against a database)
 
 First server-side code in the project. Real customer and admin

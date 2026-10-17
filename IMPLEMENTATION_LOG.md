@@ -6,6 +6,82 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Phase 5 — Stage 1 Runtime: Vercel build failure (stale AdminShell) and session-restore correction
+
+### Trigger
+Vercel failed type-checking with
+`./AdminShell.tsx:53:11 — Property 'signInAs' does not exist on type 'AdminAuthContextValue'.`
+
+### Root cause
+The deployed repository holds the **new** `lib/admin/admin-auth-context.tsx`
+(exposes `signIn(email, password)`, no `signInAs`) together with the
+**old** `components/admin/AdminShell.tsx` (the v0.4.2 `LoginPicker`, which
+destructures `signInAs`). The delivered package contains the corrected
+`AdminShell` (`AdminLoginForm`, no `signInAs`, no `LoginPicker`, no
+`ADMIN_SEED` use for authentication). So the mismatch is a **partial
+sync between the package and the repository**, not a defect in the
+packaged source. I cannot see the repository, so which other files are
+stale is unknown — see `docs/SYNC-CHECK.md` and `docs/FILE-MANIFEST.sha256`
+for a way to find out mechanically.
+
+Evidence, not inference: a positive-control run (below) overlays the v0.4.2
+`AdminShell` onto the current tree and reproduces the reported error
+byte-for-byte in message, file and position `(53,11)`.
+
+### Backend / contract audit (task 2)
+Every `/api/...` URL called by client code was mapped to a route file
+and checked for the exported HTTP method actually used. 9 of 9 resolve
+(admin login/logout/me; customer login/logout/me/register/forgot/reset).
+Response shapes read by the contexts (`data.admin`, `data.user`,
+`data.error`) match what the routes return.
+
+Repo-wide search found no remaining `signInAs`, `LoginPicker`, or
+`ADMIN_SEED`-based authentication; `ADMIN_SEED` is now referenced only by
+`prisma/seed.ts` (seed data) and its own definition.
+
+### Defect found by the audit and fixed (in Stage 1 scope)
+`/api/auth/refresh` had **no caller**, and **no admin refresh route
+existed**. Access tokens last 15 minutes, so after that `/me` reported
+"not signed in" even though the 30-day refresh cookie was valid: every
+customer and admin would have appeared logged out after 15 minutes on any
+reload. The access+refresh design was only half wired.
+Fix: new `lib/server/auth/session.ts`; both `/me` routes now mint a new
+access token from a valid refresh cookie. It re-checks the database
+(session not revoked, not expired, account still active, session belongs
+to the right audience). It deliberately does NOT rotate the refresh
+token on this path: `/me` fires on every load and can run concurrently
+(two tabs, React StrictMode's double effect), and rotation would let the
+losing request fail and spuriously sign the user out. Consequence: a
+session is a fixed 30 days from login, and `POST /api/auth/refresh`
+(which does rotate) still has no UI caller. Tests added for restore,
+revoked, deactivated, expired, and customer-cookie-cannot-restore-admin.
+
+### Checks run, with real results
+| Check | Result |
+|---|---|
+| `npm install` | **Could not run.** Sandbox has no network: `ENOTFOUND registry.npmjs.org` (earlier attempts were `403`; either way nothing installs). Offline cache has no `next`/`prisma`/`@types/*`. |
+| `prisma generate`, `prisma validate`, `next build`, vitest suite, ESLint | **Could not run** (all need the packages above). |
+| Strict type-check of the auth surface (35 files: both contexts, all consumers, AdminShell, DashboardShell, auth pages, all `app/api` routes, `lib/server/**`) under the project's real `tsconfig` (`strict`, `noUncheckedIndexedAccess`), using hand-written stubs for uninstalled packages | **0 errors.** |
+| Positive control: v0.4.2 `AdminShell` + new context, same check | **1 error — exactly the reported one.** The check detects this failure class. |
+| API contract cross-check (URL ↔ route ↔ method ↔ response shape) | 9/9 OK |
+| Manual scan for JSX `react/no-unescaped-entities` | No violations in changed files |
+| Earlier executed checks (rate limiter behaviour, dummy-hash validity, `variantKey` logic) | PASS (unchanged) |
+
+### What the stub-based check CANNOT see (blind spots, stated plainly)
+The stubs type `zod`, `jose`, `argon2` and every Prisma model delegate as
+`any`/loosely. So the check proves the **internal consistency** of our own
+types and the client/server contract, but would NOT catch: a wrong Prisma
+field name or argument shape, an incorrect `zod` schema, or misuse of any
+library API. It is also not ESLint. A passing result here is **not** a
+passing `next build`. The first real `npm install && npm run build` is
+still the authoritative test, and it has not happened.
+
+### Still blocked on database/environment
+See the earlier "Stage 1 Runtime" section: Postgres, env vars, migration,
+seed, tests, Resend. Nothing here changes that.
+
+---
+
 ## Phase 5 — Stage 1 Runtime: real authentication foundation (NOT complete)
 
 **Status: INCOMPLETE and UNVERIFIED AGAINST A LIVE DATABASE.** The code
