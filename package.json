@@ -13,7 +13,9 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prebuild": "node scripts/check-repo-hygiene.js",
+    "verify-sync": "node scripts/verify-sync.js"
   },
   "dependencies": {
     "next": "^14.2.0",

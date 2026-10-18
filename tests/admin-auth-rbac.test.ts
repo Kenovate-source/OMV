@@ -49,7 +49,7 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe("admin authentication (database-backed, not the old signInAs prototype)", () => {
+describe("admin authentication (database-backed credentials)", () => {
   it("signs in each seeded role against the database and sets httpOnly admin cookies", async () => {
     const res = await adminLogin(
       jsonRequest("/api/admin/auth/login", { body: { email: admins.SUPER.email, password: PASSWORD } })

@@ -2,6 +2,13 @@
 
 All notable changes to the OMV project are documented here, newest first.
 
+## v0.5.0-alpha.3 — Stray duplicate AdminShell: detection tooling and corrected diagnosis
+
+No application code changed. Adds `scripts/verify-sync.js` (STALE / MISSING / EXTRA),
+`scripts/check-repo-hygiene.js` (runs as `prebuild`), and a rewritten
+`docs/SYNC-CHECK.md`. The failing file was a stray root-level
+`AdminShell.tsx` in the repository, not the canonical component.
+
 ## v0.5.0-alpha.2 — Fix stale-AdminShell build failure; session restoration beyond 15 minutes
 
 No new features. Documents the build-failure root cause (repository out

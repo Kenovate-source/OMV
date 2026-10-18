@@ -6,6 +6,68 @@ completed milestones so the project stays easy to maintain and hand over.
 
 ---
 
+## Stage 1 follow-up: confirmed stray root-level `AdminShell.tsx` in the GitHub repo
+
+### Confirmed finding (from inspecting the real repository)
+Vercel commit `768c622` still failed with `signInAs does not exist`.
+Inspection of the actual repository showed TWO files:
+`AdminShell.tsx` at the repo ROOT (obsolete `LoginPicker`, calls
+`signInAs`) and `components/admin/AdminShell.tsx` (updated
+`AdminLoginForm`, calls `signIn`). `app/admin/layout.tsx` imports the
+canonical `@/components/admin/AdminShell`, so the root file is
+unreferenced — but `tsconfig.json` includes `**/*.tsx`, so TypeScript
+type-checks it anyway and it fails against the new context.
+
+This corrects my previous diagnosis ("the repo holds a stale
+`components/admin/AdminShell.tsx`"). That was wrong: the canonical file
+in the repo was already correct. The failing file was the duplicate.
+
+### Provenance (what I can and cannot say)
+Neither package I can still inspect (v0.4.2 and the r2 Stage 1 package)
+contains a root-level `AdminShell.tsx`; both have only
+`components/admin/AdminShell.tsx`. So the stray file did not come from
+those archives. I cannot inspect earlier archives or the repo history, so
+I cannot prove how it got there; a flattened manual upload is the likely
+mechanism but that is a hypothesis.
+
+### Defect in MY tooling (found because of this)
+The r2 manifest check detected STALE and MISSING files but could not
+detect EXTRA files, i.e. exactly this failure. Fixed:
+- `scripts/verify-sync.js` — reports STALE, MISSING and EXTRA separately;
+  CRLF-normalised so Windows autocrlf checkouts don't false-alarm;
+  report-only, never copies or deletes.
+- `scripts/check-repo-hygiene.js`, wired as `prebuild` — fails the build
+  early with a plain-English message for: stray root-level source files,
+  duplicate component names, and any `signInAs`/`LoginPicker` reference.
+- `docs/SYNC-CHECK.md` rewritten: the old text said "copy the files that
+  are reported", which is wrong for an EXTRA file and encouraged copying
+  from stale sources. It now separates the three cases, forbids copying
+  from older archives, and states that a ZIP does not update GitHub.
+- `tsconfig.json` `include` is deliberately UNCHANGED: narrowing it would
+  hide stray files rather than surface them.
+
+### Verification performed on the package tree
+- Exactly one `AdminShell` file; exactly one reference to it
+  (`app/admin/layout.tsx` -> `@/components/admin/AdminShell`).
+- No `signInAs` / `LoginPicker` in app, components, lib, tests.
+- Only config files at the repo root; no duplicate component basenames.
+- `tsc --listFilesOnly`: the TypeScript program contains
+  `components/admin/AdminShell.tsx` and no root-level source except
+  `tailwind.config.ts`; tests/prisma/vitest are excluded.
+- Hygiene script passes on the clean tree and FAILS on a simulated copy of
+  the broken repo; verify-sync identifies stale, missing, extra (see below).
+
+### NOT verified
+`npm install`, `prisma generate`, `prisma validate`, `next build`, the
+vitest suite, ESLint: the sandbox has no network (`ENOTFOUND`). The earlier
+stub-based type-check is not a substitute for `next build`. Whether
+Vercel now succeeds is UNKNOWN until the repository is synced and built.
+Dependency-vulnerability and npm-config/install-script warnings were not
+investigated (`npm audit` needs network); they are separate from this
+failure. `npm audit fix --force` must not be used to silence them.
+
+---
+
 ## Phase 5 — Stage 1 Runtime: Vercel build failure (stale AdminShell) and session-restore correction
 
 ### Trigger
