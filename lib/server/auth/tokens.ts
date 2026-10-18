@@ -13,13 +13,14 @@
 
 import { SignJWT, jwtVerify } from "jose";
 import { createHash, randomBytes } from "crypto";
+import { ConfigError } from "@/lib/server/errors";
 
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60; // 15 minutes
 export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 function accessSecret(): Uint8Array {
   const secret = process.env.JWT_ACCESS_SECRET;
-  if (!secret) throw new Error("JWT_ACCESS_SECRET is not set");
+  if (!secret) throw new ConfigError("JWT_ACCESS_SECRET");
   return new TextEncoder().encode(secret);
 }
 
