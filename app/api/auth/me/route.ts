@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { requireCustomer } from "@/lib/server/auth/rbac";
 import { restoreCustomerFromRefresh } from "@/lib/server/auth/session";
 import { CUSTOMER_ACCESS_COOKIE, accessCookieOptions } from "@/lib/server/auth/cookies";
 
-export async function GET(request: NextRequest) {
+export const GET = guarded("auth.me", async (request: NextRequest) => {
   const result = await requireCustomer(request);
   if (result.ok) {
     const { user } = result;
@@ -27,4 +28,4 @@ export async function GET(request: NextRequest) {
   });
   res.cookies.set(CUSTOMER_ACCESS_COOKIE, accessToken, accessCookieOptions);
   return res;
-}
+}, () => NextResponse.json({ user: null }));

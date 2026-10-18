@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { prisma } from "@/lib/server/prisma";
 import { hashRefreshToken } from "@/lib/server/auth/tokens";
 import {
@@ -7,7 +8,7 @@ import {
   clearedCookieOptions,
 } from "@/lib/server/auth/cookies";
 
-export async function POST(request: NextRequest) {
+export const POST = guarded("auth.logout", async (request: NextRequest) => {
   const refreshToken = request.cookies.get(CUSTOMER_REFRESH_COOKIE)?.value;
   if (refreshToken) {
     // Revoke the session server-side, not just clear the cookie — a
@@ -23,4 +24,4 @@ export async function POST(request: NextRequest) {
   res.cookies.set(CUSTOMER_ACCESS_COOKIE, "", clearedCookieOptions);
   res.cookies.set(CUSTOMER_REFRESH_COOKIE, "", clearedCookieOptions);
   return res;
-}
+});

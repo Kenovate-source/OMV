@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { createHash } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/server/prisma";
@@ -12,7 +13,7 @@ const schema = z.object({
 
 const INVALID_TOKEN = "This reset link is invalid or has expired.";
 
-export async function POST(request: NextRequest) {
+export const POST = guarded("auth.reset", async (request: NextRequest) => {
   if (!checkRateLimit(clientKey(request, "reset-password"), 10, 60_000)) {
     return NextResponse.json({ error: "Too many attempts. Please try again shortly." }, { status: 429 });
   }
@@ -51,4 +52,4 @@ export async function POST(request: NextRequest) {
   ]);
 
   return NextResponse.json({ message: "Password updated. Please sign in with your new password." });
-}
+});

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { requireAdminRole } from "@/lib/server/auth/rbac";
 import { restoreAdminFromRefresh } from "@/lib/server/auth/session";
 import { ADMIN_ACCESS_COOKIE, accessCookieOptions } from "@/lib/server/auth/cookies";
 
-export async function GET(request: NextRequest) {
+export const GET = guarded("admin.me", async (request: NextRequest) => {
   // All three roles may ask "who am I" — role restriction here would
   // defeat the purpose. Per-action restriction happens in each admin
   // route handler, not here.
@@ -25,4 +26,4 @@ export async function GET(request: NextRequest) {
   });
   res.cookies.set(ADMIN_ACCESS_COOKIE, accessToken, accessCookieOptions);
   return res;
-}
+}, () => NextResponse.json({ admin: null }));

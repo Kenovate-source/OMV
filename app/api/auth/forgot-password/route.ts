@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { randomBytes, createHash } from "crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/server/prisma";
@@ -18,7 +19,7 @@ const GENERIC_RESPONSE = {
   message: "If an account exists for that email, a password reset link has been sent.",
 };
 
-export async function POST(request: NextRequest) {
+export const POST = guarded("auth.forgot", async (request: NextRequest) => {
   if (!checkRateLimit(clientKey(request, "forgot-password"), 5, 60_000)) {
     return NextResponse.json({ error: "Too many attempts. Please try again shortly." }, { status: 429 });
   }
@@ -59,4 +60,4 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json(GENERIC_RESPONSE);
-}
+});

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { prisma } from "@/lib/server/prisma";
 import {
   signAccessToken,
@@ -14,7 +15,7 @@ import {
   clearedCookieOptions,
 } from "@/lib/server/auth/cookies";
 
-export async function POST(request: NextRequest) {
+export const POST = guarded("auth.refresh", async (request: NextRequest) => {
   const refreshToken = request.cookies.get(CUSTOMER_REFRESH_COOKIE)?.value;
   if (!refreshToken) {
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -46,4 +47,4 @@ export async function POST(request: NextRequest) {
   res.cookies.set(CUSTOMER_ACCESS_COOKIE, accessToken, accessCookieOptions);
   res.cookies.set(CUSTOMER_REFRESH_COOKIE, newRefreshToken, refreshCookieOptions);
   return res;
-}
+});

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { prisma } from "@/lib/server/prisma";
 import { requireAdminRole } from "@/lib/server/auth/rbac";
 
@@ -9,7 +10,7 @@ import { requireAdminRole } from "@/lib/server/auth/rbac";
 // be the authority for these permissions": a Staff Admin crafting this
 // exact request by hand gets a 403, same as if they'd clicked a link
 // the UI never offered them.
-export async function GET(request: NextRequest) {
+export const GET = guarded("admin.auditLogs", async (request: NextRequest) => {
   const auth = await requireAdminRole(request, ["SUPER"]);
   if (!auth.ok) {
     return NextResponse.json({ error: auth.message }, { status: auth.status });
@@ -29,4 +30,4 @@ export async function GET(request: NextRequest) {
       action: e.action,
     })),
   });
-}
+});

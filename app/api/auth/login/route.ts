@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { guarded } from "@/lib/server/http";
 import { z } from "zod";
 import { prisma } from "@/lib/server/prisma";
 import { verifyPassword } from "@/lib/server/auth/passwords";
@@ -29,7 +30,7 @@ const INVALID_CREDENTIALS = "Invalid email or password.";
 const DUMMY_HASH =
   "$argon2id$v=19$m=65536,t=3,p=4$c29tZXNhbHRzb21lc2FsdA$RdescudvJCsgt3ub+b+dWRWJTmaaJObG0ttTD0+LgRM";
 
-export async function POST(request: NextRequest) {
+export const POST = guarded("auth.login", async (request: NextRequest) => {
   if (!checkRateLimit(clientKey(request, "login"), 10, 60_000)) {
     return NextResponse.json({ error: "Too many attempts. Please try again shortly." }, { status: 429 });
   }
@@ -69,4 +70,4 @@ export async function POST(request: NextRequest) {
   res.cookies.set(CUSTOMER_ACCESS_COOKIE, accessToken, accessCookieOptions);
   res.cookies.set(CUSTOMER_REFRESH_COOKIE, refreshToken, refreshCookieOptions);
   return res;
-}
+});
